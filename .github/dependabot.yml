@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      androidx:
+        patterns:
+          - "androidx.*"
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "com.google.devtools.ksp*"
+    ignore:
+      # Hilt 2.59+ requiere AGP 9; se actualizará junto con la migración a AGP 9.
+      - dependency-name: "com.google.dagger*"
+        versions: [ ">= 2.59" ]
+      - dependency-name: "com.android.*"
+        update-types: [ "version-update:semver-major" ]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday

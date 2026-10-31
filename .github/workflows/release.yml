@@ -1,0 +1,72 @@
+name: Release
+
+# Al subir un tag vN.N.N se compilan el AAB (Google Play) y el APK firmados y se publican en
+# GitHub Releases. También se puede lanzar a mano para obtener los artefactos sin publicar.
+on:
+  push:
+    tags: [ "v*" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Preparar el keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Falta el secreto RELEASE_KEYSTORE_BASE64 (ver la sección «Publicar una versión» del README)."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          echo "RELEASE_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Calcular la versión
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then NAME="${GITHUB_REF_NAME#v}"; else NAME="0.0.0-dev.$GITHUB_RUN_NUMBER"; fi
+          echo "VERSION_NAME=$NAME" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$((GITHUB_RUN_NUMBER + 100))" >> "$GITHUB_ENV"
+
+      - name: Compilar AAB y APK firmados
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew :app:bundleRelease :app:assembleRelease --stacktrace
+
+      - name: Subir artefactos
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-${{ env.VERSION_NAME }}
+          path: |
+            app/build/outputs/bundle/release/*.aab
+            app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - name: Publicar en GitHub Releases
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            app/build/outputs/bundle/release/*.aab \
+            app/build/outputs/apk/release/*.apk \
+            --title "Mi Tablaturas $VERSION_NAME" \
+            --generate-notes

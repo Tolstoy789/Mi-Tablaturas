@@ -1,0 +1,12 @@
+<resources>
+    <string name="licenses_back">‹ Back</string>
+    <string name="licenses_title">About and licenses</string>
+    <string name="licenses_app_version">%1$s %2$s</string>
+    <string name="licenses_intro">Mi Tablaturas is built on these open source components. Tap one to read its license.</string>
+    <string name="licenses_show_text">Show the full license</string>
+    <string name="licenses_see_link">The full license text is available at the link.</string>
+    <string name="licenses_role_alphatab">Renders and plays the Guitar Pro scores.</string>
+    <string name="licenses_role_bravura">Music font used in the score.</string>
+    <string name="licenses_role_sonivox">Instrument sounds (SoundFont).</string>
+    <string name="licenses_role_platform">The app\'s foundation: interface, navigation, database and dependency injection.</string>
+</resources>

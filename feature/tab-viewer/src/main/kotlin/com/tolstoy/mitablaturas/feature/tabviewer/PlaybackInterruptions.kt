@@ -12,18 +12,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.core.content.ContextCompat
-
-/** Mantiene la pantalla encendida mientras el visor está en pantalla, para leer la tablatura tocando. */
-@Composable
-internal fun KeepScreenOnEffect() {
-    val view = LocalView.current
-    DisposableEffect(view) {
-        view.keepScreenOn = true
-        onDispose { view.keepScreenOn = false }
-    }
-}
 
 /**
  * Mientras suena la partitura, pide el foco de audio y escucha la desconexión de auriculares.

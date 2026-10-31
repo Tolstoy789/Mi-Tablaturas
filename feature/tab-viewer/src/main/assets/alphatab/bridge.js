@@ -54,7 +54,10 @@
     core: {
       fontDirectory: base + "font/",
       scriptFile: base + "alphaTab.min.js",
-      useWorkers: true
+      useWorkers: true,
+      // Se dibuja toda la partitura de una vez, sin esperar a que cada trozo sea visible
+      // (IntersectionObserver): así el pedal y el cursor nunca llegan a un trozo en blanco.
+      enableLazyLoading: false
     },
     display: {
       layoutMode: "page",
@@ -84,7 +87,10 @@
   var activeRange = null; // { startTick, endTick } del bucle A-B activo
 
   api.scoreLoaded.on(function (score) {
-    var names = score.tracks.map(function (t) { return t.name || ("Pista " + (t.index + 1)); });
+    // Nombre de reserva para pistas sin nombre. Igual que los textos de la app: inglés si el
+    // sistema está en inglés y español en los demás casos.
+    var trackLabel = /^en\b/i.test(navigator.language || "") ? "Track " : "Pista ";
+    var names = score.tracks.map(function (t) { return t.name || (trackLabel + (t.index + 1)); });
     native.onScoreLoaded(score.title || "", score.artist || "", names.join(SEP));
   });
   api.renderFinished.on(function () { native.onRenderFinished(); });
@@ -92,6 +98,9 @@
     // Al cambiar de pista se vuelve a dibujar la partitura: hay que volver a marcar el A-B
     // (postRenderFinished llega cuando ya se conocen las posiciones de cada compás).
     if (activeRange) highlightRange(activeRange);
+    // Diagnóstico en Logcat (WebView): tamaño del visor y trozos de partitura dibujados.
+    console.info("Mi Tablaturas: visor " + viewport.clientWidth + "x" + viewport.clientHeight +
+      ", svg " + document.querySelectorAll("#score svg").length);
   });
   api.playerReady.on(function () { native.onPlayerReady(); });
   api.playerStateChanged.on(function (e) { native.onPlayerStateChanged(e.state === 1); });
@@ -258,12 +267,34 @@
     e.preventDefault();
   });
 
+  // Guitar Pro 3-5 guarda los textos con la codificación del ordenador donde se creó el
+  // archivo, casi siempre Windows-1252 en español («Rodríguez»), y AlphaTab los lee como UTF-8.
+  // Si salen caracteres irreconocibles (U+FFFD) se vuelve a leer el archivo como Windows-1252.
+  var FALLBACK_ENCODING = "windows-1252";
+
+  function scoreTexts(score) {
+    var texts = [score.title, score.subTitle, score.artist, score.album, score.words, score.music,
+      score.copyright, score.tab, score.instructions, score.notices];
+    score.tracks.forEach(function (t) { texts.push(t.name, t.shortName); });
+    return texts.join("");
+  }
+
+  function loadScore(bytes) {
+    var loader = alphaTab.importer.ScoreLoader;
+    var score = loader.loadScoreFromBytes(bytes, api.settings);
+    if (scoreTexts(score).indexOf("\uFFFD") >= 0) {
+      api.settings.importer.encoding = FALLBACK_ENCODING;
+      score = loader.loadScoreFromBytes(bytes, api.settings);
+    }
+    api.renderScore(score);
+  }
+
   // La partitura la sirve Kotlin en esta ruta (ver TabViewerWebView.kt).
   fetch("/score/current")
     .then(function (response) {
       if (!response.ok) throw new Error("No se encontró la partitura (" + response.status + ")");
       return response.arrayBuffer();
     })
-    .then(function (buffer) { api.load(new Uint8Array(buffer)); })
+    .then(function (buffer) { loadScore(new Uint8Array(buffer)); })
     .catch(function (e) { report(e.message); });
 })();

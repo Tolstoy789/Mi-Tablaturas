@@ -1,0 +1,9 @@
+<resources>
+    <string name="pdf_viewer_back">‹ Volver</string>
+    <string name="pdf_viewer_page_count">Página %1$d de %2$d</string>
+    <string name="pdf_viewer_page_description">Página %1$d</string>
+    <string name="pdf_viewer_error_unreadable">No se pudo leer el archivo. Puede que se haya movido o borrado; ábrelo de nuevo desde el inicio.</string>
+    <string name="pdf_viewer_error_unsupported">Este archivo no es un PDF.</string>
+    <string name="pdf_viewer_error_protected">Este PDF está protegido con contraseña y no se puede abrir.</string>
+    <string name="pdf_viewer_error_damaged">No se pudo abrir el PDF. Puede estar dañado.</string>
+</resources>

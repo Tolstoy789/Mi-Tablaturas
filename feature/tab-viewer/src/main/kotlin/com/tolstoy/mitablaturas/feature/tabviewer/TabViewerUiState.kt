@@ -28,6 +28,8 @@ data class TabViewerUiState(
     val durationMs: Long = 0,
     val tempo: Int = 0,
     val error: TabViewerError? = null,
+    /** URI de un PDF que debe abrirse en el visor de PDF en lugar de aquí. */
+    val openAsPdf: String? = null,
 ) {
     val displayTitle: String get() = title.ifBlank { fileName.substringBeforeLast('.') }
 
@@ -49,8 +51,6 @@ sealed interface TabViewerError {
     data object FileUnreadable : TabViewerError
     /** Otra app compartió un archivo que no es una tablatura compatible. */
     data object Unsupported : TabViewerError
-    /** El archivo no es un formato interactivo (p. ej. un PDF). */
-    data object NotInteractive : TabViewerError
     /** AlphaTab no pudo interpretar el archivo, o falló el audio. */
     data class Engine(val detail: String) : TabViewerError
 }

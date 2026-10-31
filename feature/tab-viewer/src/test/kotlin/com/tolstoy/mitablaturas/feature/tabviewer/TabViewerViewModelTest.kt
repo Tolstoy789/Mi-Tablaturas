@@ -3,6 +3,7 @@ package com.tolstoy.mitablaturas.feature.tabviewer
 import androidx.lifecycle.SavedStateHandle
 import com.tolstoy.mitablaturas.core.data.file.TabFileRepository
 import com.tolstoy.mitablaturas.core.data.library.LibraryRepository
+import com.tolstoy.mitablaturas.core.designsystem.PedalAction
 import com.tolstoy.mitablaturas.core.model.LibraryEntry
 import com.tolstoy.mitablaturas.core.model.PracticeSettings
 import com.tolstoy.mitablaturas.core.model.TabDocument
@@ -84,11 +85,12 @@ class TabViewerViewModelTest {
     }
 
     @Test
-    fun `un pdf no se abre en el visor interactivo`() = runTest(dispatcher) {
+    fun `un pdf se pasa al visor de pdf`() = runTest(dispatcher) {
         val pdf = gp5.copy(displayName = "cancionero.pdf", format = TabFormat.PDF)
         val vm = viewModel(FakeRepository(Result.success(pdf)))
         advanceUntilIdle()
-        assertEquals(TabViewerError.NotInteractive, vm.uiState.value.error)
+        assertEquals("content://1", vm.uiState.value.openAsPdf)
+        assertNull(vm.uiState.value.error)
         assertNull(vm.uiState.value.score)
     }
 

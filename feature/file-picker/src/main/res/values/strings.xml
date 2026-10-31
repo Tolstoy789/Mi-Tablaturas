@@ -4,7 +4,6 @@
     <string name="file_picker_card_body">Guitar Pro (.gp3, .gp4, .gp5, .gpx, .gp) o PDF desde tu teléfono o la nube.</string>
     <string name="file_picker_open">Abrir archivo</string>
     <string name="file_picker_view">Ver</string>
-    <string name="file_picker_pdf_soon">PDF pronto</string>
     <string name="file_picker_dismiss">Entendido</string>
     <string name="file_picker_format_gp">Guitar Pro</string>
     <string name="file_picker_format_pdf">PDF</string>
@@ -24,6 +23,7 @@
     <string name="library_more">Más opciones</string>
     <string name="library_remove">Quitar de la biblioteca</string>
     <string name="library_speed">%1$d %%</string>
+    <string name="file_picker_licenses">Acerca de y licencias</string>
     <string name="design_button">Diseño</string>
     <string name="design_dialog_title">Elige un diseño</string>
     <string name="design_dialog_done">Listo</string>

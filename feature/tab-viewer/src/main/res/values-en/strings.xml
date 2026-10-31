@@ -1,0 +1,27 @@
+<resources>
+    <string name="tab_viewer_back">‹ Back</string>
+    <string name="tab_viewer_play">▶ Play</string>
+    <string name="tab_viewer_pause">❚❚ Pause</string>
+    <string name="tab_viewer_play_description">Play</string>
+    <string name="tab_viewer_pause_description">Pause</string>
+    <string name="tab_viewer_stop">Stop</string>
+    <string name="tab_viewer_loop">Repeat</string>
+    <string name="tab_viewer_metronome">Metronome</string>
+    <string name="tab_viewer_count_in">Count-in</string>
+    <string name="tab_viewer_loop_mark_a">Mark A</string>
+    <string name="tab_viewer_loop_mark_a_description">Mark the loop start at the bar under the cursor</string>
+    <string name="tab_viewer_loop_mark_b">Mark B</string>
+    <string name="tab_viewer_loop_mark_b_description">Mark the loop end. It starts at bar %1$d</string>
+    <string name="tab_viewer_loop_range">A-B %1$d–%2$d</string>
+    <string name="tab_viewer_loop_range_description">Repeating bars %1$d to %2$d. Tap to remove the loop</string>
+    <string name="tab_viewer_loop_hint">A is at bar %1$d. Tap the last bar in the score and press “Mark B”.</string>
+    <string name="tab_viewer_speed_trainer" formatted="false">+5% per lap</string>
+    <string name="tab_viewer_speed_trainer_hint">Raises the speed at the end of each lap</string>
+    <string name="tab_viewer_speed_trainer_target">up to %1$d%%</string>
+    <string name="tab_viewer_tracks">Tracks</string>
+    <string name="tab_viewer_speed">Speed</string>
+    <string name="tab_viewer_error_unreadable">The file could not be read. It may have been moved or deleted; open it again from the start screen.</string>
+    <string name="tab_viewer_remove_from_library">Remove from library</string>
+    <string name="tab_viewer_error_unsupported">This file is not a supported tab. Open a Guitar Pro file (.gp3, .gp4, .gp5, .gpx or .gp).</string>
+    <string name="tab_viewer_error_engine">This tab could not be shown or played. The file may be damaged or use an unsupported Guitar Pro version.</string>
+</resources>

@@ -49,6 +49,7 @@ private val PICKER_MIME_TYPES = arrayOf("*/*")
 fun FilePickerRoute(
     onOpenDocument: (TabDocument) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenLicenses: () -> Unit = {},
     viewModel: FilePickerViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -58,13 +59,11 @@ fun FilePickerRoute(
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         viewModel.onDocumentPicked(uri?.toString())
     }
-    // Un Guitar Pro elegido se abre directamente; un PDF se queda en la tarjeta hasta tener visor.
+    // El archivo elegido se abre directamente en su visor.
     LaunchedEffect(uiState) {
         val ready = uiState as? FilePickerUiState.Ready ?: return@LaunchedEffect
-        if (ready.document.format.isInteractive) {
-            onOpenDocument(ready.document)
-            viewModel.onDocumentOpened()
-        }
+        onOpenDocument(ready.document)
+        viewModel.onDocumentOpened()
     }
     FilePickerScreen(
         uiState = uiState,
@@ -79,6 +78,7 @@ fun FilePickerRoute(
             onRemove = viewModel::onRemoveFromLibrary,
         ),
         onChangeDesign = { showDesignDialog = true },
+        onOpenLicenses = onOpenLicenses,
         modifier = modifier,
     )
     if (showDesignDialog) {
@@ -100,6 +100,7 @@ fun FilePickerScreen(
     libraryState: LibraryUiState = LibraryUiState(),
     libraryActions: LibraryActions = LibraryActions(),
     onChangeDesign: () -> Unit = {},
+    onOpenLicenses: () -> Unit = {},
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val isLandscape = maxWidth > maxHeight
@@ -130,6 +131,7 @@ fun FilePickerScreen(
                     Title(onChangeDesign)
                     openCard()
                     result()
+                    LicensesLink(onOpenLicenses)
                 }
                 LazyColumn(
                     modifier = Modifier.weight(1f),
@@ -152,8 +154,16 @@ fun FilePickerScreen(
                     }
                 }
                 librarySection(libraryState, libraryActions, topSpacing = true)
+                item(key = "licenses") { LicensesLink(onOpenLicenses) }
             }
         }
+    }
+}
+
+@Composable
+private fun LicensesLink(onOpenLicenses: () -> Unit) {
+    TextButton(onClick = onOpenLicenses, modifier = Modifier.padding(top = 8.dp)) {
+        Text(stringResource(R.string.file_picker_licenses))
     }
 }
 
@@ -223,16 +233,8 @@ private fun DocumentCard(document: TabDocument, onOpen: (TabDocument) -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (document.format.isInteractive) {
-                Button(onClick = { onOpen(document) }) {
-                    Text(stringResource(R.string.file_picker_view))
-                }
-            } else {
-                Text(
-                    text = stringResource(R.string.file_picker_pdf_soon),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Button(onClick = { onOpen(document) }) {
+                Text(stringResource(R.string.file_picker_view))
             }
         }
     }

@@ -39,6 +39,10 @@ jobs:
       - name: Compilar APK debug
         run: ./gradlew :app:assembleDebug --stacktrace
 
+      # Sin firmar: solo comprueba que R8 (minify y shrink) no rompe nada.
+      - name: Compilar release con R8
+        run: ./gradlew :app:assembleRelease --stacktrace
+
       - name: Subir APK debug
         uses: actions/upload-artifact@v6
         with:

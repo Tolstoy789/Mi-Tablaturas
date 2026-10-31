@@ -7,6 +7,8 @@ App nativa de Android para abrir, renderizar y reproducir tablaturas de guitarra
 
 > Estado: abre archivos con el selector de Android o desde otras apps (Ver y Compartir) y reproduce tablaturas Guitar Pro con AlphaTab. El visor de PDF está pendiente.
 
+La pantalla de inicio guarda una **biblioteca** con las tablaturas abiertas (Room): filtros Todas, Guitar Pro, PDF y Favoritas, y por cada canción la pista, la velocidad y la posición en que se dejó. Los archivos compartidos con permiso temporal (WhatsApp, correo) se copian en el almacenamiento privado de la app para que sigan abriéndose.
+
 En el visor la pantalla no se apaga, y la reproducción se pausa si la app pasa a segundo plano, entra una llamada, suena otra app o se desconectan los auriculares.
 
 ## Stack
@@ -26,7 +28,7 @@ En el visor la pantalla no se apaga, y la reproducción se pausa si la app pasa 
 ```
 app/                    Punto de entrada, tema, navegación
 core/model/             Modelos puros de Kotlin (TabFormat, TabDocument)
-core/data/              Repositorios, acceso a archivos, preferencias (DataStore), Hilt
+core/data/              Repositorios, archivos, biblioteca (Room), preferencias (DataStore), Hilt
 core/designsystem/      Temas Atril, Escenario y Taller (Material 3)
 feature/file-picker/    Selección de archivos con SAF
 feature/tab-viewer/     Visor AlphaTab (WebView + puente JS)

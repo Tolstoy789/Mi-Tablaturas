@@ -15,4 +15,10 @@ interface TabFileRepository {
 
     /** Lee el contenido completo de [document]. Falla con una `TabFileException`. */
     suspend fun readBytes(document: TabDocument): Result<ByteArray>
+
+    /**
+     * Guarda una copia local de un archivo con permiso temporal ([TabDocument.hasLastingAccess]
+     * `false`) y devuelve el documento que apunta a ella, para poder reabrirlo desde la biblioteca.
+     */
+    suspend fun importCopy(document: TabDocument, bytes: ByteArray): Result<TabDocument> = Result.success(document)
 }

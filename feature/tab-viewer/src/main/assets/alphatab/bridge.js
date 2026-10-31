@@ -98,7 +98,11 @@
     },
     setSpeed: function (speed) { api.playbackSpeed = speed; },
     setLooping: function (enabled) { api.isLooping = enabled; },
-    setMetronome: function (enabled) { api.metronomeVolume = enabled ? 1 : 0; }
+    setMetronome: function (enabled) { api.metronomeVolume = enabled ? 1 : 0; },
+    seek: function (ms) {
+      api.timePosition = ms;
+      api.scrollToCursor();
+    }
   };
 
   // La partitura la sirve Kotlin en esta ruta (ver TabViewerWebView.kt).

@@ -1,7 +1,9 @@
 package com.tolstoy.mitablaturas
 
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -22,8 +24,13 @@ class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Mantiene la pantalla de inicio hasta leer el diseño guardado (suele ser < 50 ms).
-        installSplashScreen().setKeepOnScreenCondition { viewModel.design.value == null }
+        // Mantiene la pantalla de inicio hasta leer el diseño guardado y, en Android 12+,
+        // hasta que termine la animación del icono (las cuerdas vibrando), solo en arranque en frío.
+        val splashStart = SystemClock.uptimeMillis()
+        val minSplashMs = if (savedInstanceState == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) SPLASH_ANIMATION_MS else 0L
+        installSplashScreen().setKeepOnScreenCondition {
+            viewModel.design.value == null || SystemClock.uptimeMillis() - splashStart < minSplashMs
+        }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -45,5 +52,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private companion object {
+        /** Debe coincidir con `windowSplashScreenAnimationDuration` en themes.xml. */
+        const val SPLASH_ANIMATION_MS = 900L
     }
 }

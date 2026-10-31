@@ -86,7 +86,11 @@ cd Mi-Tablaturas
 
 También puedes abrir la carpeta en Android Studio y ejecutar la configuración `app`.
 
-Cada push y pull request ejecuta los tests y compila el APK debug en GitHub Actions (`.github/workflows/android.yml`). El APK queda disponible como artefacto `app-debug` del workflow.
+Cada push y pull request ejecuta los tests, lint y compila el APK debug en GitHub Actions (`.github/workflows/android.yml`). El APK queda disponible como artefacto `app-debug` y el informe de lint como `lint-report`.
+
+Dependabot (`.github/dependabot.yml`) propone cada lunes las actualizaciones de Gradle y de las acciones. Hilt se queda en 2.57.x hasta migrar a AGP 9.
+
+Para exigir el CI en verde antes de cada merge, activa en GitHub **Settings → Branches → Add rule** para `main` con *Require status checks to pass* y marca el check `build`.
 
 ## Convenciones
 

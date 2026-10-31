@@ -40,6 +40,14 @@ android {
     buildFeatures {
         compose = true
     }
+
+    lint {
+        // Analiza también los módulos core y feature en un solo informe.
+        checkDependencies = true
+        abortOnError = true
+        warningsAsErrors = false
+        htmlReport = true
+    }
 }
 
 kotlin {

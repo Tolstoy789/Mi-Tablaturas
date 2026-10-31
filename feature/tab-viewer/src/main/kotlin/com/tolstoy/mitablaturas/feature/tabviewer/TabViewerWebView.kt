@@ -3,7 +3,6 @@ package com.tolstoy.mitablaturas.feature.tabviewer
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.ApplicationInfo
-import android.net.Uri
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -19,16 +18,34 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
+import com.tolstoy.mitablaturas.core.designsystem.ScoreSheetStyle
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.AlphaTabBridge
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.AlphaTabEvent
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.PlayerCommand
 import kotlinx.coroutines.flow.Flow
 import java.io.ByteArrayInputStream
+import java.util.Locale
 
 private const val VIEWER_URL = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}/assets/alphatab/viewer.html"
 
-/** URL del visor con el tema de colores que aplica `bridge.js` (atril, escenario o taller). */
-internal fun viewerUrl(webTheme: String): String = "$VIEWER_URL?theme=${Uri.encode(webTheme)}"
+/** URL del visor con los colores de la hoja, que `bridge.js` aplica a AlphaTab. */
+internal fun viewerUrl(style: ScoreSheetStyle): String {
+    val params = linkedMapOf(
+        "bg" to style.background.hex(),
+        "accent" to style.accent.hex(),
+        "accentAlpha" to String.format(Locale.US, "%.2f", style.accentAlpha),
+        "staff" to style.staffLine.hex(),
+        "bar" to style.barSeparator.hex(),
+        "glyph" to style.mainGlyph.hex(),
+        "secondary" to style.secondaryGlyph.hex(),
+        "info" to style.scoreInfo.hex(),
+        "barNumber" to style.barNumber.hex(),
+    )
+    return VIEWER_URL + params.entries.joinToString("&", prefix = "?") { (key, value) -> "$key=$value" }
+}
+
+/** `RRGGBB` sin almohadilla ni transparencia. */
+private fun Color.hex(): String = String.format(Locale.US, "%06X", toArgb() and 0xFFFFFF)
 
 /**
  * WebView con AlphaTab servido desde `assets/` mediante [WebViewAssetLoader] (origen https,
@@ -38,8 +55,7 @@ internal fun viewerUrl(webTheme: String): String = "$VIEWER_URL?theme=${Uri.enco
 @Composable
 fun TabViewerWebView(
     score: ScoreBytes,
-    webTheme: String,
-    background: Color,
+    sheetStyle: ScoreSheetStyle,
     commands: Flow<PlayerCommand>,
     onEvent: (AlphaTabEvent) -> Unit,
     modifier: Modifier = Modifier,
@@ -52,11 +68,11 @@ fun TabViewerWebView(
     AndroidView(
         modifier = modifier,
         factory = { context ->
-            createWebView(context, bridge, background.toArgb(), scoreProvider = { currentScore.bytes }) { message ->
+            createWebView(context, bridge, sheetStyle.background.toArgb(), scoreProvider = { currentScore.bytes }) { message ->
                 currentOnEvent(AlphaTabEvent.Error(message))
             }.also {
                 holder.webView = it
-                it.loadUrl(viewerUrl(webTheme))
+                it.loadUrl(viewerUrl(sheetStyle))
             }
         },
         onRelease = { webView ->

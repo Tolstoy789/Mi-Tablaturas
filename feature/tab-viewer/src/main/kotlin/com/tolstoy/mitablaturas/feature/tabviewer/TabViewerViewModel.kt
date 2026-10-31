@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
 @HiltViewModel
 class TabViewerViewModel @Inject constructor(
@@ -103,6 +104,13 @@ class TabViewerViewModel @Inject constructor(
                     durationMs = event.endMs,
                     tempo = event.tempo,
                 )
+                is AlphaTabEvent.LoopRangeChanged -> state.copy(
+                    loopStartBar = event.startBar,
+                    loopEndBar = event.endBar,
+                    // Al cerrar el bucle A-B, AlphaTab activa «Repetir».
+                    isLooping = state.isLooping || event.endBar > 0,
+                )
+                AlphaTabEvent.LoopCompleted -> state
                 is AlphaTabEvent.Error -> state.copy(
                     error = TabViewerError.Engine(event.message),
                     isRendering = false,
@@ -113,8 +121,18 @@ class TabViewerViewModel @Inject constructor(
             is AlphaTabEvent.ScoreLoaded -> restoreTrack(event.trackNames.size)
             AlphaTabEvent.PlayerReady -> restorePlayback()
             is AlphaTabEvent.PlayerStateChanged -> if (!event.isPlaying) savePractice()
+            AlphaTabEvent.LoopCompleted -> stepSpeedTrainer()
             else -> Unit
         }
+    }
+
+    /** Entrenador de velocidad: +5 % por vuelta, sin pasar del objetivo. */
+    private fun stepSpeedTrainer() {
+        val state = _uiState.value
+        if (!state.isSpeedTrainerOn || state.speed >= state.speedTrainerTarget) return
+        val next = ((state.speed + SPEED_TRAINER_STEP) * 100).roundToInt().coerceAtMost((state.speedTrainerTarget * 100).roundToInt()) / 100f
+        _uiState.update { it.copy(speed = next) }
+        send(PlayerCommand.SetSpeed(next))
     }
 
     private fun restoreTrack(trackCount: Int) {
@@ -182,6 +200,41 @@ class TabViewerViewModel @Inject constructor(
         send(PlayerCommand.SetLooping(enabled))
     }
 
+    fun onCountInToggled() {
+        val enabled = !_uiState.value.isCountInOn
+        _uiState.update { it.copy(isCountInOn = enabled) }
+        send(PlayerCommand.SetCountIn(enabled))
+    }
+
+    /** Un solo botón recorre los pasos: marcar A, marcar B y quitar el bucle. */
+    fun onLoopRangeTapped() {
+        val command = when (_uiState.value.loopRange) {
+            LoopRangeState.NONE -> PlayerCommand.MarkLoopStart
+            LoopRangeState.START_MARKED -> PlayerCommand.MarkLoopEnd
+            LoopRangeState.ACTIVE -> PlayerCommand.ClearLoopRange
+        }
+        send(command)
+    }
+
+    fun onSpeedTrainerToggled() {
+        _uiState.update { it.copy(isSpeedTrainerOn = !it.isSpeedTrainerOn) }
+    }
+
+    /** Cambia el objetivo del entrenador al siguiente de [SPEED_TRAINER_TARGETS]. */
+    fun onSpeedTrainerTargetCycled() {
+        _uiState.update { state ->
+            val index = SPEED_TRAINER_TARGETS.indexOfFirst { it >= state.speedTrainerTarget - 0.001f }
+            state.copy(speedTrainerTarget = SPEED_TRAINER_TARGETS[(index + 1) % SPEED_TRAINER_TARGETS.size])
+        }
+    }
+
+    /** Pedal Bluetooth o teclado. */
+    fun onPedal(action: PedalAction) = when (action) {
+        PedalAction.PLAY_PAUSE -> onPlayPause()
+        PedalAction.NEXT_PAGE -> send(PlayerCommand.ScrollPage(1))
+        PedalAction.PREVIOUS_PAGE -> send(PlayerCommand.ScrollPage(-1))
+    }
+
     fun onMetronomeToggled() {
         val enabled = !_uiState.value.isMetronomeOn
         _uiState.update { it.copy(isMetronomeOn = enabled) }
@@ -190,7 +243,9 @@ class TabViewerViewModel @Inject constructor(
 
     /** Actualiza el valor mostrado mientras se arrastra el control. */
     fun onSpeedChanging(speed: Float) {
-        _uiState.update { it.copy(speed = speed.coerceIn(MIN_SPEED, MAX_SPEED)) }
+        // Pasos del 5 %, los mismos que usa el entrenador de velocidad.
+        val rounded = (speed.coerceIn(MIN_SPEED, MAX_SPEED) * 20).roundToInt() / 20f
+        _uiState.update { it.copy(speed = rounded) }
     }
 
     /** Aplica la velocidad al soltar el control, para no saturar el puente. */
@@ -208,5 +263,7 @@ class TabViewerViewModel @Inject constructor(
         const val MIN_SPEED = 0.25f
         const val MAX_SPEED = 1.5f
         private const val END_MARGIN_MS = 1_000L
+        private const val SPEED_TRAINER_STEP = 0.05f
+        val SPEED_TRAINER_TARGETS = listOf(0.8f, 0.9f, 1f, 1.1f, 1.2f)
     }
 }

@@ -15,23 +15,30 @@
   window.addEventListener("error", function (e) { report(e.message); });
   window.addEventListener("unhandledrejection", function (e) { report(e.reason && e.reason.message || e.reason); });
 
-  // Colores por diseño; deben coincidir con core/designsystem (Theme.kt).
-  var THEMES = {
-    atril: {
-      sheet: "#FBFBFA", accent: "#2B59C3", accentSoft: "rgba(43, 89, 195, 0.12)",
-      staff: "#9AA1AD", bar: "#5E6676", glyph: "#1D2330", secondary: "#5E6676", info: "#1D2330", barNumber: "#2B59C3"
-    },
-    escenario: {
-      sheet: "#10141C", accent: "#F5A524", accentSoft: "rgba(245, 165, 36, 0.18)",
-      staff: "#3A4357", bar: "#5A6478", glyph: "#E9ECF2", secondary: "#8D96A8", info: "#E9ECF2", barNumber: "#F5A524"
-    },
-    taller: {
-      sheet: "#FFFFFF", accent: "#5B3FD1", accentSoft: "rgba(91, 63, 209, 0.10)",
-      staff: "#A59FB8", bar: "#6C6585", glyph: "#1F1A33", secondary: "#6C6585", info: "#1F1A33", barNumber: "#5B3FD1"
-    }
+  // Los colores llegan en la URL desde Kotlin (ScoreSheetStyle en core/designsystem), que es la
+  // única fuente. Los valores por defecto son los del diseño Taller, para abrir la página suelta.
+  var params = new URLSearchParams(location.search);
+  function color(name, fallback) {
+    var value = params.get(name);
+    return /^[0-9a-fA-F]{6}$/.test(value || "") ? "#" + value : fallback;
+  }
+  function softColor(hex, alpha) {
+    var n = parseInt(hex.slice(1), 16);
+    return "rgba(" + (n >> 16 & 255) + ", " + (n >> 8 & 255) + ", " + (n & 255) + ", " + alpha + ")";
+  }
+  var accent = color("accent", "#5B3FD1");
+  var accentAlpha = parseFloat(params.get("accentAlpha"));
+  var theme = {
+    sheet: color("bg", "#FFFFFF"),
+    accent: accent,
+    accentSoft: softColor(accent, isNaN(accentAlpha) ? 0.1 : accentAlpha),
+    staff: color("staff", "#A59FB8"),
+    bar: color("bar", "#6C6585"),
+    glyph: color("glyph", "#1F1A33"),
+    secondary: color("secondary", "#6C6585"),
+    info: color("info", "#1F1A33"),
+    barNumber: color("barNumber", "#5B3FD1")
   };
-  var themeName = new URLSearchParams(location.search).get("theme");
-  var theme = THEMES[themeName] || THEMES.taller;
   var rootStyle = document.documentElement.style;
   rootStyle.setProperty("--sheet", theme.sheet);
   rootStyle.setProperty("--accent", theme.accent);
@@ -42,6 +49,7 @@
     return;
   }
 
+  var viewport = document.getElementById("viewport");
   var api = new alphaTab.AlphaTabApi(document.getElementById("score"), {
     core: {
       fontDirectory: base + "font/",
@@ -65,20 +73,36 @@
       soundFont: base + "soundfont/sonivox.sf3",
       scrollElement: "#viewport",
       enableCursor: true,
-      enableAnimatedBeatCursor: true
+      enableAnimatedBeatCursor: true,
+      // Tocar un compás mueve el cursor allí.
+      enableUserInteraction: true
     }
   });
 
   var lastSentSecond = -1;
+  var loopStart = null; // MasterBarTickLookup del punto A, mientras falta marcar B
+  var activeRange = null; // { startTick, endTick } del bucle A-B activo
 
   api.scoreLoaded.on(function (score) {
     var names = score.tracks.map(function (t) { return t.name || ("Pista " + (t.index + 1)); });
     native.onScoreLoaded(score.title || "", score.artist || "", names.join(SEP));
   });
   api.renderFinished.on(function () { native.onRenderFinished(); });
+  api.postRenderFinished.on(function () {
+    // Al cambiar de pista se vuelve a dibujar la partitura: hay que volver a marcar el A-B
+    // (postRenderFinished llega cuando ya se conocen las posiciones de cada compás).
+    if (activeRange) highlightRange(activeRange);
+  });
   api.playerReady.on(function () { native.onPlayerReady(); });
   api.playerStateChanged.on(function (e) { native.onPlayerStateChanged(e.state === 1); });
-  api.playerFinished.on(function () { native.onPlayerStateChanged(false); });
+  api.playerFinished.on(function () {
+    // Con «Repetir» activo AlphaTab avisa al final de cada vuelta y sigue sonando.
+    if (api.isLooping) {
+      native.onLoopCompleted();
+    } else {
+      native.onPlayerStateChanged(false);
+    }
+  });
   api.playerPositionChanged.on(function (e) {
     // Se limita a un evento por segundo para no saturar el puente ni recomponer de más.
     var second = Math.floor(e.currentTime / 1000);
@@ -86,7 +110,77 @@
     lastSentSecond = second;
     native.onPositionChanged(Math.round(e.currentTime), Math.round(e.endTime), Math.round(e.modifiedTempo));
   });
+  api.playbackRangeChanged.on(function (e) {
+    var range = e.playbackRange;
+    // Tocar la partitura para mover el cursor borra la selección; el A-B solo se quita con su botón.
+    if (!range && activeRange) {
+      applyRange(activeRange);
+      return;
+    }
+    activeRange = range ? { startTick: range.startTick, endTick: range.endTick } : null;
+    reportRange();
+  });
   api.error.on(function (e) { report(e && e.message); });
+
+  /** Compás (MasterBarTickLookup) bajo el cursor, o null si aún no hay datos de reproducción. */
+  function barAtCursor() {
+    var cache = api.tickCache;
+    if (!cache || !api.tracks.length) return null;
+    var tracks = new Set(api.tracks.map(function (t) { return t.index; }));
+    var result = cache.findBeat(tracks, api.tickPosition);
+    return result ? result.masterBar : null;
+  }
+
+  /** Compás (MasterBarTickLookup) que contiene el tick, con las repeticiones ya desplegadas. */
+  function barAtTick(tick) {
+    var bars = api.tickCache ? api.tickCache.masterBars : [];
+    for (var i = 0; i < bars.length; i++) {
+      if (tick >= bars[i].start && tick < bars[i].end) return bars[i];
+    }
+    return null;
+  }
+
+  /** Informa a Kotlin de los compases (desde 1) del bucle; 0 si no hay punto A o B. */
+  function reportRange() {
+    var first = activeRange && barAtTick(activeRange.startTick);
+    var last = activeRange && barAtTick(activeRange.endTick - 1);
+    if (first && last) {
+      native.onLoopRangeChanged(first.masterBar.index + 1, last.masterBar.index + 1);
+    } else {
+      native.onLoopRangeChanged(loopStart ? loopStart.masterBar.index + 1 : 0, 0);
+    }
+  }
+
+  function applyRange(range) {
+    api.playbackRange = range;
+    highlightRange(range);
+  }
+
+  /**
+   * Quita la marca del bucle. AlphaTab recuerda la última selección y la vuelve a dibujar tras
+   * cada render, aunque sea de otra pista (y entonces falla); una selección de un solo pulso
+   * no se dibuja, así que se deja esa en su lugar.
+   */
+  function resetSelection() {
+    var bars = api.tracks.length ? api.tracks[0].staves[0].bars : [];
+    var beat = bars.length ? bars[0].voices[0].beats[0] : null;
+    if (beat) api.highlightPlaybackRange(beat, beat);
+  }
+
+  /** Marca en la partitura los compases del bucle, en la pista que se está mostrando. */
+  function highlightRange(range) {
+    var first = barAtTick(range.startTick);
+    var last = barAtTick(range.endTick - 1);
+    if (!first || !last || !api.tracks.length) return;
+    var bars = api.tracks[0].staves[0].bars;
+    var startBeats = bars[first.masterBar.index].voices[0].beats;
+    var endBeats = bars[last.masterBar.index].voices[0].beats;
+    api.highlightPlaybackRange(startBeats[0], endBeats[endBeats.length - 1]);
+  }
+
+  function scrollPage(direction) {
+    viewport.scrollBy({ top: direction * viewport.clientHeight * 0.85, behavior: "smooth" });
+  }
 
   window.tab = {
     playPause: function () { api.playPause(); },
@@ -94,16 +188,75 @@
     stop: function () { api.stop(); },
     selectTrack: function (index) {
       var track = api.score && api.score.tracks[index];
-      if (track) api.renderTracks([track]);
+      if (!track) return;
+      // La marca del A-B apunta a compases de la pista anterior; se vuelve a poner al terminar.
+      resetSelection();
+      api.renderTracks([track]);
     },
     setSpeed: function (speed) { api.playbackSpeed = speed; },
     setLooping: function (enabled) { api.isLooping = enabled; },
     setMetronome: function (enabled) { api.metronomeVolume = enabled ? 1 : 0; },
+    setCountIn: function (enabled) { api.countInVolume = enabled ? 1 : 0; },
     seek: function (ms) {
       api.timePosition = ms;
       api.scrollToCursor();
-    }
+    },
+    /** Punto A: el compás donde está el cursor. */
+    markLoopStart: function () {
+      var start = barAtCursor();
+      if (!start) return;
+      activeRange = null;
+      api.playbackRange = null;
+      resetSelection();
+      loopStart = start;
+      reportRange();
+    },
+    /** Punto B: el compás donde está el cursor; repite de A a B (en cualquier orden). */
+    markLoopEnd: function () {
+      var end = barAtCursor();
+      if (!loopStart || !end) return;
+      var first = end.start < loopStart.start ? end : loopStart;
+      var last = end.start < loopStart.start ? loopStart : end;
+      loopStart = null;
+      activeRange = { startTick: first.start, endTick: last.end };
+      applyRange(activeRange);
+      api.isLooping = true;
+      api.tickPosition = first.start;
+      reportRange();
+    },
+    clearLoopRange: function () {
+      loopStart = null;
+      activeRange = null;
+      api.playbackRange = null;
+      resetSelection();
+      reportRange();
+    },
+    scrollPage: scrollPage
   };
+
+  // Pedal Bluetooth o teclado: los pasapáginas envían Av Pág / flechas, y Espacio reproduce.
+  document.addEventListener("keydown", function (e) {
+    switch (e.key) {
+      case " ":
+      case "Enter":
+      case "MediaPlayPause":
+        api.playPause();
+        break;
+      case "PageDown":
+      case "ArrowDown":
+      case "ArrowRight":
+        scrollPage(1);
+        break;
+      case "PageUp":
+      case "ArrowUp":
+      case "ArrowLeft":
+        scrollPage(-1);
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+  });
 
   // La partitura la sirve Kotlin en esta ruta (ver TabViewerWebView.kt).
   fetch("/score/current")

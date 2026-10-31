@@ -9,6 +9,14 @@ App nativa de Android para abrir, renderizar y reproducir tablaturas de guitarra
 
 La pantalla de inicio guarda una **biblioteca** con las tablaturas abiertas (Room): filtros Todas, Guitar Pro, PDF y Favoritas, y por cada canción la pista, la velocidad y la posición en que se dejó. Los archivos compartidos con permiso temporal (WhatsApp, correo) se copian en el almacenamiento privado de la app para que sigan abriéndose.
 
+Herramientas de práctica en el visor:
+
+- **Tocar la partitura** mueve el cursor a ese compás.
+- **Bucle A-B por compases:** coloca el cursor, pulsa «Marcar A», toca el último compás y pulsa «Marcar B». Tocar la partitura no lo quita; se quita con el mismo botón.
+- **Cuenta previa**, **metrónomo** y **velocidad** del 25 % al 150 % en pasos del 5 %.
+- **+5 % por vuelta:** sube la velocidad al terminar cada repetición hasta el objetivo elegido (80-120 %).
+- **Pedal Bluetooth o teclado:** Av Pág / Re Pág (o las flechas) pasan de pantalla y Espacio reproduce o pausa.
+
 En el visor la pantalla no se apaga, y la reproducción se pausa si la app pasa a segundo plano, entra una llamada, suena otra app o se desconectan los auriculares.
 
 ## Stack

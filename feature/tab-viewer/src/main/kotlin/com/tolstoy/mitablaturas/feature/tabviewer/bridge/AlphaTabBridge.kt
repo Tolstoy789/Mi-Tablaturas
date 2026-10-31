@@ -36,6 +36,14 @@ class AlphaTabBridge(private val onEvent: (AlphaTabEvent) -> Unit) {
         onEvent(AlphaTabEvent.PositionChanged(currentMs.coerceAtLeast(0), endMs.coerceAtLeast(0), tempo))
 
     @JavascriptInterface
+    fun onLoopCompleted() = onEvent(AlphaTabEvent.LoopCompleted)
+
+    /** Compases del bucle A-B, contados desde 1; 0 si falta ese punto. */
+    @JavascriptInterface
+    fun onLoopRangeChanged(startBar: Int, endBar: Int) =
+        onEvent(AlphaTabEvent.LoopRangeChanged(startBar.coerceAtLeast(0), endBar.coerceAtLeast(0)))
+
+    @JavascriptInterface
     fun onError(message: String?) = onEvent(AlphaTabEvent.Error(message.orEmpty()))
 
     companion object {

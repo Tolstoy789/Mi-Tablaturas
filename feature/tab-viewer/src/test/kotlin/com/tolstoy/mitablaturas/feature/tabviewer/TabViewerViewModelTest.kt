@@ -228,6 +228,84 @@ class TabViewerViewModelTest {
     }
 
     @Test
+    fun `el boton A-B marca A, luego B y despues quita el bucle`() = runTest(dispatcher) {
+        val vm = viewModel(FakeRepository(Result.success(gp5)))
+        advanceUntilIdle()
+        vm.onLoopRangeTapped()
+        vm.onEngineEvent(AlphaTabEvent.LoopRangeChanged(startBar = 4, endBar = 0))
+        assertEquals(LoopRangeState.START_MARKED, vm.uiState.value.loopRange)
+        vm.onLoopRangeTapped()
+        vm.onEngineEvent(AlphaTabEvent.LoopRangeChanged(startBar = 4, endBar = 8))
+        assertEquals(LoopRangeState.ACTIVE, vm.uiState.value.loopRange)
+        assertTrue(vm.uiState.value.isLooping)
+        vm.onLoopRangeTapped()
+        assertEquals(
+            listOf(PlayerCommand.MarkLoopStart, PlayerCommand.MarkLoopEnd, PlayerCommand.ClearLoopRange),
+            vm.commands.take(3).toList(),
+        )
+    }
+
+    @Test
+    fun `el entrenador sube un 5 por ciento por vuelta hasta el objetivo`() = runTest(dispatcher) {
+        val vm = viewModel(FakeRepository(Result.success(gp5)))
+        advanceUntilIdle()
+        vm.onSpeedChanging(0.9f)
+        vm.onSpeedTrainerToggled()
+        vm.onEngineEvent(AlphaTabEvent.LoopCompleted)
+        assertEquals(0.95f, vm.uiState.value.speed)
+        vm.onEngineEvent(AlphaTabEvent.LoopCompleted)
+        vm.onEngineEvent(AlphaTabEvent.LoopCompleted)
+        assertEquals(1f, vm.uiState.value.speed)
+        assertEquals(listOf(PlayerCommand.SetSpeed(0.95f), PlayerCommand.SetSpeed(1f)), vm.commands.take(2).toList())
+    }
+
+    @Test
+    fun `sin entrenador las vueltas no cambian la velocidad`() = runTest(dispatcher) {
+        val vm = viewModel(FakeRepository(Result.success(gp5)))
+        advanceUntilIdle()
+        vm.onSpeedChanging(0.5f)
+        vm.onEngineEvent(AlphaTabEvent.LoopCompleted)
+        assertEquals(0.5f, vm.uiState.value.speed)
+    }
+
+    @Test
+    fun `el objetivo del entrenador recorre las opciones`() = runTest(dispatcher) {
+        val vm = viewModel(FakeRepository(Result.success(gp5)))
+        assertEquals(1f, vm.uiState.value.speedTrainerTarget)
+        vm.onSpeedTrainerTargetCycled()
+        assertEquals(1.1f, vm.uiState.value.speedTrainerTarget)
+        vm.onSpeedTrainerTargetCycled()
+        vm.onSpeedTrainerTargetCycled()
+        assertEquals(0.8f, vm.uiState.value.speedTrainerTarget)
+    }
+
+    @Test
+    fun `la velocidad va en pasos del 5 por ciento`() = runTest(dispatcher) {
+        val vm = viewModel(FakeRepository(Result.success(gp5)))
+        vm.onSpeedChanging(0.83f)
+        assertEquals(0.85f, vm.uiState.value.speed)
+    }
+
+    @Test
+    fun `cuenta previa y pedal envian sus ordenes`() = runTest(dispatcher) {
+        val vm = viewModel(FakeRepository(Result.success(gp5)))
+        vm.onCountInToggled()
+        assertTrue(vm.uiState.value.isCountInOn)
+        vm.onPedal(PedalAction.NEXT_PAGE)
+        vm.onPedal(PedalAction.PREVIOUS_PAGE)
+        vm.onPedal(PedalAction.PLAY_PAUSE)
+        assertEquals(
+            listOf(
+                PlayerCommand.SetCountIn(true),
+                PlayerCommand.ScrollPage(1),
+                PlayerCommand.ScrollPage(-1),
+                PlayerCommand.PlayPause,
+            ),
+            vm.commands.take(4).toList(),
+        )
+    }
+
+    @Test
     fun `formatTime muestra minutos y segundos`() {
         assertEquals("0:05", formatTime(5_000))
         assertEquals("2:03", formatTime(123_400))

@@ -7,6 +7,17 @@
     <string name="tab_viewer_stop">Detener</string>
     <string name="tab_viewer_loop">Repetir</string>
     <string name="tab_viewer_metronome">Metrónomo</string>
+    <string name="tab_viewer_count_in">Cuenta previa</string>
+    <string name="tab_viewer_loop_mark_a">Marcar A</string>
+    <string name="tab_viewer_loop_mark_a_description">Marcar el inicio del bucle en el compás del cursor</string>
+    <string name="tab_viewer_loop_mark_b">Marcar B</string>
+    <string name="tab_viewer_loop_mark_b_description">Marcar el final del bucle. Empieza en el compás %1$d</string>
+    <string name="tab_viewer_loop_range">A-B %1$d–%2$d</string>
+    <string name="tab_viewer_loop_range_description">Repitiendo los compases %1$d a %2$d. Toca para quitar el bucle</string>
+    <string name="tab_viewer_loop_hint">A en el compás %1$d. Toca el último compás de la partitura y pulsa «Marcar B».</string>
+    <string name="tab_viewer_speed_trainer" formatted="false">+5 % por vuelta</string>
+    <string name="tab_viewer_speed_trainer_hint">Sube la velocidad al terminar cada vuelta</string>
+    <string name="tab_viewer_speed_trainer_target">hasta %1$d %%</string>
     <string name="tab_viewer_tracks">Pistas</string>
     <string name="tab_viewer_speed">Velocidad</string>
     <string name="tab_viewer_error_unreadable">No se pudo leer el archivo. Puede que se haya movido o borrado; ábrelo de nuevo desde el inicio.</string>

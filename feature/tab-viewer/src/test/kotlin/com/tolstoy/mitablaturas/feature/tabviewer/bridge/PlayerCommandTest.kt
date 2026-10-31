@@ -12,6 +12,11 @@ class PlayerCommandTest {
         assertEquals("window.tab && window.tab.selectTrack(2);", PlayerCommand.SelectTrack(2).toJavaScript())
         assertEquals("window.tab && window.tab.setLooping(true);", PlayerCommand.SetLooping(true).toJavaScript())
         assertEquals("window.tab && window.tab.seek(42000);", PlayerCommand.Seek(42_000).toJavaScript())
+        assertEquals("window.tab && window.tab.setCountIn(true);", PlayerCommand.SetCountIn(true).toJavaScript())
+        assertEquals("window.tab && window.tab.markLoopStart();", PlayerCommand.MarkLoopStart.toJavaScript())
+        assertEquals("window.tab && window.tab.markLoopEnd();", PlayerCommand.MarkLoopEnd.toJavaScript())
+        assertEquals("window.tab && window.tab.clearLoopRange();", PlayerCommand.ClearLoopRange.toJavaScript())
+        assertEquals("window.tab && window.tab.scrollPage(-1);", PlayerCommand.ScrollPage(-5).toJavaScript())
     }
 
     @Test

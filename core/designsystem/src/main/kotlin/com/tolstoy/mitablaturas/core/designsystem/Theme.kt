@@ -15,16 +15,63 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.tolstoy.mitablaturas.core.model.AppDesign
 
-/** Colores de la hoja de la partitura y nombre del tema que entiende `bridge.js`. */
+/**
+ * Colores de la hoja de la partitura. Es la única fuente: el visor se los pasa a `bridge.js`
+ * en la URL, que los aplica a AlphaTab.
+ *
+ * @property accentAlpha opacidad del acento para el fondo del compás que suena y del bucle A-B.
+ */
 @Immutable
 data class ScoreSheetStyle(
     val background: Color,
-    val webTheme: String,
+    val accent: Color,
+    val accentAlpha: Float,
+    val staffLine: Color,
+    val barSeparator: Color,
+    val mainGlyph: Color,
+    val secondaryGlyph: Color,
+    val scoreInfo: Color,
+    val barNumber: Color,
 )
 
-val LocalScoreSheetStyle = staticCompositionLocalOf {
-    ScoreSheetStyle(background = White, webTheme = AppDesign.DEFAULT.key)
-}
+private val AtrilSheet = ScoreSheetStyle(
+    background = AtrilPalette.Paper,
+    accent = AtrilPalette.Cobalt,
+    accentAlpha = 0.12f,
+    staffLine = AtrilPalette.StaffLine,
+    barSeparator = AtrilPalette.InkMuted,
+    mainGlyph = AtrilPalette.Ink,
+    secondaryGlyph = AtrilPalette.InkMuted,
+    scoreInfo = AtrilPalette.Ink,
+    barNumber = AtrilPalette.Cobalt,
+)
+
+private val EscenarioSheet = ScoreSheetStyle(
+    background = EscenarioPalette.Background,
+    accent = EscenarioPalette.Amber,
+    accentAlpha = 0.18f,
+    staffLine = EscenarioPalette.StaffLine,
+    barSeparator = EscenarioPalette.BarLine,
+    mainGlyph = EscenarioPalette.Text,
+    secondaryGlyph = EscenarioPalette.TextMuted,
+    scoreInfo = EscenarioPalette.Text,
+    barNumber = EscenarioPalette.Amber,
+)
+
+/** Taller mantiene la hoja blanca también en modo oscuro, como una partitura impresa. */
+private val TallerSheet = ScoreSheetStyle(
+    background = White,
+    accent = TallerPalette.Violet40,
+    accentAlpha = 0.10f,
+    staffLine = TallerPalette.StaffLine,
+    barSeparator = TallerPalette.InkMuted,
+    mainGlyph = TallerPalette.Ink,
+    secondaryGlyph = TallerPalette.InkMuted,
+    scoreInfo = TallerPalette.Ink,
+    barNumber = TallerPalette.Violet40,
+)
+
+val LocalScoreSheetStyle = staticCompositionLocalOf { TallerSheet }
 
 /** Indica si el diseño activo usa colores oscuros (para iconos de la barra de estado). */
 @Composable
@@ -46,9 +93,9 @@ fun MiTablaturasTheme(
         AppDesign.TALLER -> if (dark) TallerDarkColors else TallerLightColors
     }
     val sheet = when (design) {
-        AppDesign.ESCENARIO -> ScoreSheetStyle(EscenarioPalette.Background, design.key)
-        AppDesign.ATRIL -> ScoreSheetStyle(AtrilPalette.Paper, design.key)
-        AppDesign.TALLER -> ScoreSheetStyle(White, design.key)
+        AppDesign.ESCENARIO -> EscenarioSheet
+        AppDesign.ATRIL -> AtrilSheet
+        AppDesign.TALLER -> TallerSheet
     }
     CompositionLocalProvider(LocalScoreSheetStyle provides sheet) {
         MaterialTheme(colorScheme = colorScheme, shapes = design.shapes(), content = content)

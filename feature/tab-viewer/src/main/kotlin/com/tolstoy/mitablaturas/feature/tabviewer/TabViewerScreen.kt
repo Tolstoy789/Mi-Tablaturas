@@ -1,6 +1,16 @@
 package com.tolstoy.mitablaturas.feature.tabviewer
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -77,9 +87,35 @@ fun TabViewerRoute(
                 viewModel.onRemoveFromLibrary()
                 onBack()
             },
+            onLoopRangeTapped = viewModel::onLoopRangeTapped,
+            onCountInToggled = viewModel::onCountInToggled,
+            onSpeedTrainerToggled = viewModel::onSpeedTrainerToggled,
+            onSpeedTrainerTargetCycled = viewModel::onSpeedTrainerTargetCycled,
         ),
-        modifier = modifier,
+        modifier = modifier.pedalInput(viewModel::onPedal),
     )
+}
+
+/**
+ * Recibe las teclas de un pedal Bluetooth o teclado cuando el foco no está en la partitura.
+ * El visor pide el foco al abrirse para que el pedal funcione sin tocar la pantalla.
+ */
+@Composable
+private fun Modifier.pedalInput(onPedal: (PedalAction) -> Unit): Modifier {
+    val focusRequester = remember { FocusRequester() }
+    var viewerFocused by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    // onKeyEvent y onFocusChanged van antes de focusable() para recibir lo que llega a ese foco.
+    return this
+        .onKeyEvent { event ->
+            if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+            val action = pedalActionFor(event.nativeKeyEvent.keyCode, viewerFocused) ?: return@onKeyEvent false
+            onPedal(action)
+            true
+        }
+        .onFocusChanged { viewerFocused = it.isFocused }
+        .focusRequester(focusRequester)
+        .focusable()
 }
 
 /** Agrupa las lambdas en una clase estable para evitar recomposiciones al cambiar la posición. */
@@ -94,6 +130,10 @@ data class TabViewerActions(
     val onSpeedChanging: (Float) -> Unit = {},
     val onSpeedChangeFinished: () -> Unit = {},
     val onRemoveFromLibrary: () -> Unit = {},
+    val onLoopRangeTapped: () -> Unit = {},
+    val onCountInToggled: () -> Unit = {},
+    val onSpeedTrainerToggled: () -> Unit = {},
+    val onSpeedTrainerTargetCycled: () -> Unit = {},
 )
 
 /** Ancho del panel lateral con pistas y herramientas en horizontal. */
@@ -186,8 +226,7 @@ private fun ScoreSheet(
             if (score != null && error !is TabViewerError.Engine) {
                 TabViewerWebView(
                     score = score,
-                    webTheme = sheetStyle.webTheme,
-                    background = sheetStyle.background,
+                    sheetStyle = sheetStyle,
                     commands = commands,
                     onEvent = onEngineEvent,
                     modifier = Modifier.fillMaxSize(),
@@ -299,6 +338,8 @@ private fun PracticeTools(uiState: TabViewerUiState, actions: TabViewerActions, 
     val stopLabel = stringResource(R.string.tab_viewer_stop)
     val loopLabel = stringResource(R.string.tab_viewer_loop)
     val metronomeLabel = stringResource(R.string.tab_viewer_metronome)
+    val countInLabel = stringResource(R.string.tab_viewer_count_in)
+    val trainerLabel = stringResource(R.string.tab_viewer_speed_trainer)
 
     Column(
         modifier = if (compact) Modifier else Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
@@ -314,6 +355,13 @@ private fun PracticeTools(uiState: TabViewerUiState, actions: TabViewerActions, 
         val metronome: @Composable (Modifier) -> Unit = {
             TogglePill(metronomeLabel, uiState.isMetronomeOn, enabled, { actions.onMetronomeToggled() }, it)
         }
+        val loopRange: @Composable (Modifier) -> Unit = { LoopRangePill(uiState, enabled, actions.onLoopRangeTapped, it) }
+        val countIn: @Composable (Modifier) -> Unit = {
+            TogglePill(countInLabel, uiState.isCountInOn, enabled, { actions.onCountInToggled() }, it)
+        }
+        val trainer: @Composable (Modifier) -> Unit = {
+            TogglePill(trainerLabel, uiState.isSpeedTrainerOn, enabled, { actions.onSpeedTrainerToggled() }, it)
+        }
         if (compact) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 play(Modifier.weight(1f))
@@ -323,6 +371,11 @@ private fun PracticeTools(uiState: TabViewerUiState, actions: TabViewerActions, 
                 loop(Modifier.weight(1f))
                 metronome(Modifier.weight(1f))
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                loopRange(Modifier.weight(1f))
+                countIn(Modifier.weight(1f))
+            }
+            trainer(Modifier.fillMaxWidth())
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 play(Modifier.weight(1f))
@@ -330,8 +383,60 @@ private fun PracticeTools(uiState: TabViewerUiState, actions: TabViewerActions, 
                 loop(Modifier.weight(1f))
                 metronome(Modifier.weight(1.3f))
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                loopRange(Modifier.weight(1.2f))
+                countIn(Modifier.weight(1.1f))
+                trainer(Modifier.weight(1.1f))
+            }
         }
+        PracticeHints(uiState, actions.onSpeedTrainerTargetCycled)
         SpeedControl(uiState.speed, enabled, actions, stacked = compact)
+    }
+}
+
+/** Botón del bucle A-B: marca A, luego B, y con el bucle activo lo quita. */
+@Composable
+private fun LoopRangePill(uiState: TabViewerUiState, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val (label, description) = when (uiState.loopRange) {
+        LoopRangeState.NONE -> stringResource(R.string.tab_viewer_loop_mark_a) to
+            stringResource(R.string.tab_viewer_loop_mark_a_description)
+        LoopRangeState.START_MARKED -> stringResource(R.string.tab_viewer_loop_mark_b) to
+            stringResource(R.string.tab_viewer_loop_mark_b_description, uiState.loopStartBar)
+        LoopRangeState.ACTIVE -> stringResource(R.string.tab_viewer_loop_range, uiState.loopStartBar, uiState.loopEndBar) to
+            stringResource(R.string.tab_viewer_loop_range_description, uiState.loopStartBar, uiState.loopEndBar)
+    }
+    ActionPill(
+        label = label,
+        enabled = enabled,
+        onClick = onClick,
+        modifier = modifier,
+        emphasized = uiState.loopRange == LoopRangeState.ACTIVE,
+        description = description,
+    )
+}
+
+/** Indicaciones bajo los botones: cómo cerrar el bucle y hasta dónde sube el entrenador. */
+@Composable
+private fun PracticeHints(uiState: TabViewerUiState, onTargetCycled: () -> Unit) {
+    if (uiState.loopRange == LoopRangeState.START_MARKED) {
+        Text(
+            text = stringResource(R.string.tab_viewer_loop_hint, uiState.loopStartBar),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    if (uiState.isSpeedTrainerOn) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.tab_viewer_speed_trainer_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            TextButton(onClick = onTargetCycled) {
+                Text(stringResource(R.string.tab_viewer_speed_trainer_target, (uiState.speedTrainerTarget * 100).roundToInt()))
+            }
+        }
     }
 }
 
@@ -345,7 +450,6 @@ private fun SpeedControl(speed: Float, enabled: Boolean, actions: TabViewerActio
             onValueChange = actions.onSpeedChanging,
             onValueChangeFinished = actions.onSpeedChangeFinished,
             valueRange = TabViewerViewModel.MIN_SPEED..TabViewerViewModel.MAX_SPEED,
-            steps = 4,
             enabled = enabled,
             modifier = sliderModifier,
         )
@@ -439,6 +543,7 @@ private fun PillLabel(label: String) {
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
         )
     }

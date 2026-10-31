@@ -6,6 +6,7 @@ internal val White = Color(0xFFFFFFFF)
 
 // ---------- Taller: violeta, colores por pista ----------
 internal object TallerPalette {
+    val StaffLine = Color(0xFFA59FB8)
     val Ink = Color(0xFF1F1A33)
     val InkMuted = Color(0xFF6C6585)
     val Violet10 = Color(0xFF1D0B5C)
@@ -35,6 +36,7 @@ internal object TallerPalette {
 // ---------- Atril: papel, tinta y cobalto ----------
 internal object AtrilPalette {
     val Paper = Color(0xFFFBFBFA)
+    val StaffLine = Color(0xFF9AA1AD)
     val Ink = Color(0xFF1D2330)
     val InkMuted = Color(0xFF5E6676)
     val Line = Color(0xFFECEEF2)
@@ -51,6 +53,8 @@ internal object AtrilPalette {
 // ---------- Escenario: noche y ámbar ----------
 internal object EscenarioPalette {
     val Background = Color(0xFF10141C)
+    val StaffLine = Color(0xFF3A4357)
+    val BarLine = Color(0xFF5A6478)
     val Surface = Color(0xFF1A2030)
     val SurfaceHigh = Color(0xFF262E42)
     val Text = Color(0xFFE9ECF2)

@@ -13,6 +13,7 @@ webkit = "1.14.0"
 navigation = "2.9.5"
 datastore = "1.1.7"
 splashscreen = "1.0.1"
+room = "2.7.2"
 junit = "4.13.2"
 
 compileSdk = "36"
@@ -44,6 +45,10 @@ androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "w
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 

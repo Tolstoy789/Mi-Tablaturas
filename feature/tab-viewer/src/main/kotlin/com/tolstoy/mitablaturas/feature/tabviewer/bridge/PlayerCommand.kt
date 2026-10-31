@@ -11,6 +11,8 @@ sealed interface PlayerCommand {
     data class SetSpeed(val speed: Float) : PlayerCommand
     data class SetLooping(val enabled: Boolean) : PlayerCommand
     data class SetMetronome(val enabled: Boolean) : PlayerCommand
+    /** Mueve el cursor a [positionMs] y desplaza la partitura hasta él. */
+    data class Seek(val positionMs: Long) : PlayerCommand
 
     /** Script listo para `WebView.evaluateJavascript`. Si la página aún no cargó, no hace nada. */
     fun toJavaScript(): String {
@@ -22,6 +24,7 @@ sealed interface PlayerCommand {
             is SetSpeed -> "setSpeed(${String.format(Locale.US, "%.2f", speed)})"
             is SetLooping -> "setLooping($enabled)"
             is SetMetronome -> "setMetronome($enabled)"
+            is Seek -> "seek($positionMs)"
         }
         return "window.tab && window.tab.$call;"
     }

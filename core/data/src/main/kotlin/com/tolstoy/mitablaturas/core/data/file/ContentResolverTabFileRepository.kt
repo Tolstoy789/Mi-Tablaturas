@@ -28,14 +28,39 @@ class ContentResolverTabFileRepository @Inject constructor(
     override suspend fun resolve(uri: String): Result<TabDocument> = withContext(ioDispatcher) {
         runCatchingTab(fileName = null) {
             val parsed = Uri.parse(uri)
-            val (displayName, size) = queryMetadata(parsed)
+            val localCopy = ImportedFiles.localFile(context, uri)
+            val (displayName, size) = if (localCopy != null) {
+                if (!localCopy.exists()) throw TabFileException.Unreadable(localCopy.name)
+                localCopy.name to localCopy.length()
+            } else {
+                queryMetadata(parsed)
+            }
             // Algunas apps comparten el archivo sin extensión en el nombre: se mira su cabecera.
             val format = TabFormat.fromFileName(displayName) ?: sniffFormat(parsed)
             val document = TabDocumentValidator.validate(uri, displayName, size, format)
-            persistReadPermission(parsed)
-            document
+            val lasting = localCopy != null || persistReadPermission(parsed)
+            document.copy(hasLastingAccess = lasting)
         }
     }
+
+    override suspend fun importCopy(document: TabDocument, bytes: ByteArray): Result<TabDocument> =
+        withContext(ioDispatcher) {
+            runCatchingTab(document.displayName) {
+                // Si llegó sin extensión, se añade la del formato detectado para reconocerlo después.
+                val name = if (TabFormat.fromFileName(document.displayName) == null) {
+                    "${document.displayName}.${document.format.extensions.first()}"
+                } else {
+                    document.displayName
+                }
+                val file = ImportedFiles.save(context, name, bytes)
+                document.copy(
+                    uri = Uri.fromFile(file).toString(),
+                    displayName = file.name,
+                    sizeBytes = bytes.size.toLong(),
+                    hasLastingAccess = true,
+                )
+            }
+        }
 
     override suspend fun readBytes(document: TabDocument): Result<ByteArray> = withContext(ioDispatcher) {
         runCatchingTab(document.displayName) {
@@ -75,13 +100,19 @@ class ContentResolverTabFileRepository @Inject constructor(
         return TabFormat.fromHeader(header.copyOf(filled))
     }
 
-    /** No todos los proveedores conceden permisos persistentes; si falla, el archivo sigue abierto en esta sesión. */
-    private fun persistReadPermission(uri: Uri) {
+    /**
+     * No todos los proveedores conceden permisos persistentes; si falla, el archivo sigue
+     * abierto en esta sesión. Devuelve `true` si el permiso queda guardado.
+     */
+    private fun persistReadPermission(uri: Uri): Boolean {
         try {
             resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            return true
         } catch (_: SecurityException) {
             // Permiso solo temporal: suficiente para abrir el archivo ahora.
         }
+        // Puede que ya estuviera guardado de una apertura anterior.
+        return resolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission }
     }
 
     /** Lee como mucho [TabDocumentValidator.MAX_SIZE_BYTES] para no agotar memoria con archivos enormes. */

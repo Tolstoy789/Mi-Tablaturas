@@ -7,11 +7,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -24,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -49,16 +52,32 @@ fun FilePickerRoute(
     viewModel: FilePickerViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val libraryState by viewModel.libraryState.collectAsStateWithLifecycle()
     val design by viewModel.design.collectAsStateWithLifecycle()
     var showDesignDialog by rememberSaveable { mutableStateOf(false) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         viewModel.onDocumentPicked(uri?.toString())
     }
+    // Un Guitar Pro elegido se abre directamente; un PDF se queda en la tarjeta hasta tener visor.
+    LaunchedEffect(uiState) {
+        val ready = uiState as? FilePickerUiState.Ready ?: return@LaunchedEffect
+        if (ready.document.format.isInteractive) {
+            onOpenDocument(ready.document)
+            viewModel.onDocumentOpened()
+        }
+    }
     FilePickerScreen(
         uiState = uiState,
+        libraryState = libraryState,
         onOpenFile = { launcher.launch(PICKER_MIME_TYPES) },
         onDismissError = viewModel::onErrorDismissed,
         onOpenDocument = onOpenDocument,
+        libraryActions = LibraryActions(
+            onOpen = { entry -> onOpenDocument(entry.document) },
+            onFilterSelected = viewModel::onFilterSelected,
+            onFavoriteToggled = viewModel::onFavoriteToggled,
+            onRemove = viewModel::onRemoveFromLibrary,
+        ),
         onChangeDesign = { showDesignDialog = true },
         modifier = modifier,
     )
@@ -78,6 +97,8 @@ fun FilePickerScreen(
     onDismissError: () -> Unit,
     onOpenDocument: (TabDocument) -> Unit,
     modifier: Modifier = Modifier,
+    libraryState: LibraryUiState = LibraryUiState(),
+    libraryActions: LibraryActions = LibraryActions(),
     onChangeDesign: () -> Unit = {},
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -93,7 +114,7 @@ fun FilePickerScreen(
             OpenFileCard(isLoading = uiState is FilePickerUiState.Loading, onOpenFile = onOpenFile)
         }
         if (isLandscape) {
-            // En horizontal: título y tarjeta para abrir a la izquierda, resultado a la derecha.
+            // En horizontal: título y tarjeta para abrir a la izquierda, biblioteca a la derecha.
             Row(
                 modifier = Modifier
                     .fillMaxSize()
@@ -108,26 +129,29 @@ fun FilePickerScreen(
                 ) {
                     Title(onChangeDesign)
                     openCard()
+                    result()
                 }
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(top = 44.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) { result() }
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    librarySection(libraryState, libraryActions)
+                }
             }
         } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Title(onChangeDesign)
-                openCard()
-                result()
+                item(key = "header") {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Title(onChangeDesign)
+                        openCard()
+                        result()
+                    }
+                }
+                librarySection(libraryState, libraryActions, topSpacing = true)
             }
         }
     }
@@ -215,7 +239,7 @@ private fun DocumentCard(document: TabDocument, onOpen: (TabDocument) -> Unit) {
 }
 
 @Composable
-private fun FormatBadge(format: TabFormat) {
+internal fun FormatBadge(format: TabFormat) {
     val (container, content) = if (format.isInteractive) {
         MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
     } else {
@@ -261,7 +285,7 @@ private fun FilePickerError.message(): String = when (this) {
 private fun TabFormat.shortLabel(): String = extensions.first().uppercase()
 
 @Composable
-private fun TabFormat.label(): String = when (this) {
+internal fun TabFormat.label(): String = when (this) {
     TabFormat.PDF -> stringResource(R.string.file_picker_format_pdf)
     else -> stringResource(R.string.file_picker_format_gp)
 }

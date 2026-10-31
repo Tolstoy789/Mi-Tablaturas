@@ -73,6 +73,10 @@ fun TabViewerRoute(
             onMetronomeToggled = viewModel::onMetronomeToggled,
             onSpeedChanging = viewModel::onSpeedChanging,
             onSpeedChangeFinished = viewModel::onSpeedChangeFinished,
+            onRemoveFromLibrary = {
+                viewModel.onRemoveFromLibrary()
+                onBack()
+            },
         ),
         modifier = modifier,
     )
@@ -89,6 +93,7 @@ data class TabViewerActions(
     val onMetronomeToggled: () -> Unit = {},
     val onSpeedChanging: (Float) -> Unit = {},
     val onSpeedChangeFinished: () -> Unit = {},
+    val onRemoveFromLibrary: () -> Unit = {},
 )
 
 /** Ancho del panel lateral con pistas y herramientas en horizontal. */
@@ -105,9 +110,16 @@ fun TabViewerScreen(
     // el diseño vertical y el horizontal, en lugar de destruirlo y recargar la partitura.
     val currentCommands by rememberUpdatedState(commands)
     val currentOnEngineEvent by rememberUpdatedState(actions.onEngineEvent)
+    val currentOnRemove by rememberUpdatedState(actions.onRemoveFromLibrary)
     val sheet = remember {
         movableContentOf { state: TabViewerUiState, sheetModifier: Modifier ->
-            ScoreSheet(state, currentCommands, { event -> currentOnEngineEvent(event) }, sheetModifier)
+            ScoreSheet(
+                uiState = state,
+                commands = currentCommands,
+                onEngineEvent = { event -> currentOnEngineEvent(event) },
+                onRemoveFromLibrary = { currentOnRemove() },
+                modifier = sheetModifier,
+            )
         }
     }
 
@@ -163,6 +175,7 @@ private fun ScoreSheet(
     uiState: TabViewerUiState,
     commands: Flow<PlayerCommand>,
     onEngineEvent: (AlphaTabEvent) -> Unit,
+    onRemoveFromLibrary: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sheetStyle = LocalScoreSheetStyle.current
@@ -181,7 +194,7 @@ private fun ScoreSheet(
                 )
             }
             when {
-                error != null -> ErrorMessage(error, Modifier.align(Alignment.Center))
+                error != null -> ErrorMessage(error, onRemoveFromLibrary, Modifier.align(Alignment.Center))
                 uiState.isRendering -> CircularProgressIndicator(Modifier.align(Alignment.Center))
             }
         }
@@ -432,24 +445,34 @@ private fun PillLabel(label: String) {
 }
 
 @Composable
-private fun ErrorMessage(error: TabViewerError, modifier: Modifier = Modifier) {
+private fun ErrorMessage(error: TabViewerError, onRemoveFromLibrary: () -> Unit, modifier: Modifier = Modifier) {
     val text = when (error) {
         TabViewerError.FileUnreadable -> stringResource(R.string.tab_viewer_error_unreadable)
         TabViewerError.Unsupported -> stringResource(R.string.tab_viewer_error_unsupported)
         TabViewerError.NotInteractive -> stringResource(R.string.tab_viewer_error_not_interactive)
         is TabViewerError.Engine -> stringResource(R.string.tab_viewer_error_engine)
     }
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyMedium,
-        textAlign = TextAlign.Center,
-        color = MaterialTheme.colorScheme.onErrorContainer,
+    Column(
         modifier = modifier
             .padding(24.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.errorContainer)
             .padding(16.dp),
-    )
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
+        // Un archivo borrado o sin permiso no volverá a abrirse: se ofrece quitarlo de la lista.
+        if (error == TabViewerError.FileUnreadable) {
+            TextButton(onClick = onRemoveFromLibrary) {
+                Text(stringResource(R.string.tab_viewer_remove_from_library))
+            }
+        }
+    }
 }
 
 internal fun formatTime(ms: Long): String {

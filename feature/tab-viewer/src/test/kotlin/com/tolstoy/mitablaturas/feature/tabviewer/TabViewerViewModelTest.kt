@@ -2,6 +2,9 @@ package com.tolstoy.mitablaturas.feature.tabviewer
 
 import androidx.lifecycle.SavedStateHandle
 import com.tolstoy.mitablaturas.core.data.file.TabFileRepository
+import com.tolstoy.mitablaturas.core.data.library.LibraryRepository
+import com.tolstoy.mitablaturas.core.model.LibraryEntry
+import com.tolstoy.mitablaturas.core.model.PracticeSettings
 import com.tolstoy.mitablaturas.core.model.TabDocument
 import com.tolstoy.mitablaturas.core.model.TabFileException
 import com.tolstoy.mitablaturas.core.model.TabFormat
@@ -9,10 +12,12 @@ import com.tolstoy.mitablaturas.feature.tabviewer.bridge.AlphaTabEvent
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.PlayerCommand
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -40,12 +45,33 @@ class TabViewerViewModelTest {
     ) : TabFileRepository {
         override suspend fun resolve(uri: String) = document
         override suspend fun readBytes(document: TabDocument) = bytes
+        override suspend fun importCopy(document: TabDocument, bytes: ByteArray) =
+            Result.success(document.copy(uri = "file:///copia/${document.displayName}", hasLastingAccess = true))
+    }
+
+    private class FakeLibrary(saved: Map<String, PracticeSettings> = emptyMap()) : LibraryRepository {
+        val opened = mutableListOf<TabDocument>()
+        val settings = saved.toMutableMap()
+        val removed = mutableListOf<String>()
+        override val entries = MutableStateFlow<List<LibraryEntry>>(emptyList())
+        override suspend fun recordOpened(document: TabDocument) { opened += document }
+        override suspend fun setFavorite(uri: String, favorite: Boolean) = Unit
+        override suspend fun remove(uri: String) { removed += uri }
+        override suspend fun practiceSettings(uri: String) = settings[uri]
+        override suspend fun savePracticeSettings(uri: String, settings: PracticeSettings) {
+            this.settings[uri] = settings
+        }
     }
 
     private val gp5 = TabDocument("content://1", "Blues en La.gp5", TabFormat.GUITAR_PRO_5, 3)
 
-    private fun viewModel(repository: TabFileRepository) =
-        TabViewerViewModel(SavedStateHandle(mapOf(TabViewerViewModel.ARG_URI to "content://1")), repository)
+    private fun TestScope.viewModel(repository: TabFileRepository, library: LibraryRepository = FakeLibrary()) =
+        TabViewerViewModel(
+            savedStateHandle = SavedStateHandle(mapOf(TabViewerViewModel.ARG_URI to "content://1")),
+            repository = repository,
+            library = library,
+            appScope = this,
+        )
 
     @Test
     fun `carga los bytes de un gp5`() = runTest(dispatcher) {
@@ -130,6 +156,75 @@ class TabViewerViewModelTest {
         vm.onAudioInterrupted()
         // La interrupción sin sonido no envía nada: solo llegan Detener y la pausa posterior.
         assertEquals(listOf(PlayerCommand.Stop, PlayerCommand.Pause), vm.commands.take(2).toList())
+    }
+
+    @Test
+    fun `al abrir se guarda en la biblioteca`() = runTest(dispatcher) {
+        val library = FakeLibrary()
+        viewModel(FakeRepository(Result.success(gp5)), library)
+        advanceUntilIdle()
+        assertEquals(listOf(gp5), library.opened)
+    }
+
+    @Test
+    fun `un archivo con permiso temporal se guarda como copia local`() = runTest(dispatcher) {
+        val library = FakeLibrary()
+        val shared = gp5.copy(hasLastingAccess = false)
+        viewModel(FakeRepository(Result.success(shared)), library)
+        advanceUntilIdle()
+        assertEquals("file:///copia/Blues en La.gp5", library.opened.single().uri)
+    }
+
+    @Test
+    fun `restaura pista, velocidad y posicion de la ultima vez`() = runTest(dispatcher) {
+        val library = FakeLibrary(mapOf("content://1" to PracticeSettings(trackIndex = 1, speed = 0.75f, positionMs = 42_000)))
+        val vm = viewModel(FakeRepository(Result.success(gp5)), library)
+        advanceUntilIdle()
+        assertEquals(0.75f, vm.uiState.value.speed)
+
+        vm.onEngineEvent(AlphaTabEvent.ScoreLoaded("", "", listOf("Guitarra", "Bajo")))
+        assertEquals(1, vm.uiState.value.selectedTrack)
+        vm.onEngineEvent(AlphaTabEvent.PlayerReady)
+        assertEquals(
+            listOf(PlayerCommand.SelectTrack(1), PlayerCommand.SetSpeed(0.75f), PlayerCommand.Seek(42_000)),
+            vm.commands.take(3).toList(),
+        )
+    }
+
+    @Test
+    fun `al pausar guarda los ajustes`() = runTest(dispatcher) {
+        val library = FakeLibrary()
+        val vm = viewModel(FakeRepository(Result.success(gp5)), library)
+        advanceUntilIdle()
+        vm.onEngineEvent(AlphaTabEvent.ScoreLoaded("", "", listOf("Guitarra", "Bajo")))
+        vm.onEngineEvent(AlphaTabEvent.PlayerReady)
+        vm.onSpeedChanging(0.5f)
+        vm.onEngineEvent(AlphaTabEvent.PositionChanged(30_000, 120_000, 90))
+        vm.onEngineEvent(AlphaTabEvent.PlayerStateChanged(isPlaying = false))
+        advanceUntilIdle()
+        assertEquals(PracticeSettings(trackIndex = 0, speed = 0.5f, positionMs = 30_000), library.settings["content://1"])
+    }
+
+    @Test
+    fun `si la cancion termino la proxima vez empieza desde el principio`() = runTest(dispatcher) {
+        val library = FakeLibrary()
+        val vm = viewModel(FakeRepository(Result.success(gp5)), library)
+        advanceUntilIdle()
+        vm.onEngineEvent(AlphaTabEvent.PlayerReady)
+        vm.onEngineEvent(AlphaTabEvent.PositionChanged(119_800, 120_000, 90))
+        vm.onEngineEvent(AlphaTabEvent.PlayerStateChanged(isPlaying = false))
+        advanceUntilIdle()
+        assertEquals(0L, library.settings["content://1"]?.positionMs)
+    }
+
+    @Test
+    fun `quitar de la biblioteca usa la uri abierta`() = runTest(dispatcher) {
+        val library = FakeLibrary()
+        val vm = viewModel(FakeRepository(Result.failure(TabFileException.Unreadable("x.gp5"))), library)
+        advanceUntilIdle()
+        vm.onRemoveFromLibrary()
+        advanceUntilIdle()
+        assertEquals(listOf("content://1"), library.removed)
     }
 
     @Test

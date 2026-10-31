@@ -11,6 +11,7 @@ class PlayerCommandTest {
         assertEquals("window.tab && window.tab.playPause();", PlayerCommand.PlayPause.toJavaScript())
         assertEquals("window.tab && window.tab.selectTrack(2);", PlayerCommand.SelectTrack(2).toJavaScript())
         assertEquals("window.tab && window.tab.setLooping(true);", PlayerCommand.SetLooping(true).toJavaScript())
+        assertEquals("window.tab && window.tab.seek(42000);", PlayerCommand.Seek(42_000).toJavaScript())
     }
 
     @Test

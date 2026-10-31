@@ -1,5 +1,7 @@
 package com.tolstoy.mitablaturas.feature.filepicker
 
+import com.tolstoy.mitablaturas.core.model.LibraryEntry
+import com.tolstoy.mitablaturas.core.model.LibraryFilter
 import com.tolstoy.mitablaturas.core.model.TabDocument
 import com.tolstoy.mitablaturas.core.model.TabFileException
 
@@ -24,3 +26,13 @@ internal fun Throwable.toFilePickerError(): FilePickerError = when (this) {
     is TabFileException.TooLarge -> FilePickerError.TooLarge(fileName, maxBytes)
     else -> FilePickerError.Unreadable
 }
+
+/**
+ * @property entries entradas que cumplen [filter], de la más reciente a la más antigua.
+ * @property hasEntries `true` si la biblioteca tiene alguna entrada, aunque el filtro la oculte.
+ */
+data class LibraryUiState(
+    val entries: List<LibraryEntry> = emptyList(),
+    val filter: LibraryFilter = LibraryFilter.ALL,
+    val hasEntries: Boolean = false,
+)

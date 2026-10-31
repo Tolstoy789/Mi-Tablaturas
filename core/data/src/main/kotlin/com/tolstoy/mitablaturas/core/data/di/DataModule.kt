@@ -2,6 +2,8 @@ package com.tolstoy.mitablaturas.core.data.di
 
 import com.tolstoy.mitablaturas.core.data.file.ContentResolverTabFileRepository
 import com.tolstoy.mitablaturas.core.data.file.TabFileRepository
+import com.tolstoy.mitablaturas.core.data.library.LibraryRepository
+import com.tolstoy.mitablaturas.core.data.library.RoomLibraryRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -15,4 +17,8 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindTabFileRepository(impl: ContentResolverTabFileRepository): TabFileRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLibraryRepository(impl: RoomLibraryRepository): LibraryRepository
 }

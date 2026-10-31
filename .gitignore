@@ -1,0 +1,44 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+**/build/
+
+# Local configuration
+local.properties
+*.keystore
+*.jks
+keystore.properties
+secrets.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+captures/
+.externalNativeBuild/
+.cxx/
+.navigation/
+
+# Kotlin
+.kotlin/
+
+# Generated files
+bin/
+gen/
+out/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+output-metadata.json
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
+
+# Node (AlphaTab bundle tooling, if any)
+node_modules/

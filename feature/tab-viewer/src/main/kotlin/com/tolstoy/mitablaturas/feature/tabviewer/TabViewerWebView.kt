@@ -126,7 +126,7 @@ private fun createWebView(
         // Sin MATCH_PARENT, AndroidView deja el WebView en WRAP_CONTENT y el WebView toma la
         // altura de su contenido: la página mide 0 px de alto y la partitura no se ve, aunque
         // AlphaTab la dibuje y suene.
-        layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        // CONTROL: sin layoutParams
         setBackgroundColor(backgroundColor)
         settings.apply {
             javaScriptEnabled = true

@@ -1,5 +1,3 @@
 <resources>
     <string name="app_name">Mi Tablaturas</string>
-    <string name="home_title">Mi Tablaturas</string>
-    <string name="home_subtitle">Abre tablaturas Guitar Pro (.gp3, .gp4, .gp5, .gpx, .gp) y PDF.</string>
 </resources>

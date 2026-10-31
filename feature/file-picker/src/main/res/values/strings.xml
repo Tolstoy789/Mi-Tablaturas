@@ -1,0 +1,13 @@
+<resources>
+    <string name="file_picker_title">Mis tablaturas</string>
+    <string name="file_picker_card_title">Abre una tablatura</string>
+    <string name="file_picker_card_body">Guitar Pro (.gp3, .gp4, .gp5, .gpx, .gp) o PDF desde tu teléfono o la nube.</string>
+    <string name="file_picker_open">Abrir archivo</string>
+    <string name="file_picker_dismiss">Entendido</string>
+    <string name="file_picker_format_gp">Guitar Pro</string>
+    <string name="file_picker_format_pdf">PDF</string>
+    <string name="file_picker_error_format">«%1$s» no es una tablatura compatible. Elige un archivo .gp3, .gp4, .gp5, .gpx, .gp o .pdf.</string>
+    <string name="file_picker_error_empty">«%1$s» está vacío o dañado.</string>
+    <string name="file_picker_error_too_large">«%1$s» supera el máximo de %2$d MB.</string>
+    <string name="file_picker_error_unreadable">No se pudo leer el archivo. Comprueba que sigue existiendo y vuelve a intentarlo.</string>
+</resources>

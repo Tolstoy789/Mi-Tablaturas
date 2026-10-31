@@ -15,6 +15,28 @@
   window.addEventListener("error", function (e) { report(e.message); });
   window.addEventListener("unhandledrejection", function (e) { report(e.reason && e.reason.message || e.reason); });
 
+  // Colores por diseño; deben coincidir con core/designsystem (Theme.kt).
+  var THEMES = {
+    atril: {
+      sheet: "#FBFBFA", accent: "#2B59C3", accentSoft: "rgba(43, 89, 195, 0.12)",
+      staff: "#9AA1AD", bar: "#5E6676", glyph: "#1D2330", secondary: "#5E6676", info: "#1D2330", barNumber: "#2B59C3"
+    },
+    escenario: {
+      sheet: "#10141C", accent: "#F5A524", accentSoft: "rgba(245, 165, 36, 0.18)",
+      staff: "#3A4357", bar: "#5A6478", glyph: "#E9ECF2", secondary: "#8D96A8", info: "#E9ECF2", barNumber: "#F5A524"
+    },
+    taller: {
+      sheet: "#FFFFFF", accent: "#5B3FD1", accentSoft: "rgba(91, 63, 209, 0.10)",
+      staff: "#A59FB8", bar: "#6C6585", glyph: "#1F1A33", secondary: "#6C6585", info: "#1F1A33", barNumber: "#5B3FD1"
+    }
+  };
+  var themeName = new URLSearchParams(location.search).get("theme");
+  var theme = THEMES[themeName] || THEMES.taller;
+  var rootStyle = document.documentElement.style;
+  rootStyle.setProperty("--sheet", theme.sheet);
+  rootStyle.setProperty("--accent", theme.accent);
+  rootStyle.setProperty("--accent-soft", theme.accentSoft);
+
   if (typeof alphaTab === "undefined") {
     report("No se pudo cargar AlphaTab");
     return;
@@ -28,7 +50,15 @@
     },
     display: {
       layoutMode: "page",
-      scale: 0.9
+      scale: 0.9,
+      resources: {
+        staffLineColor: theme.staff,
+        barSeparatorColor: theme.bar,
+        mainGlyphColor: theme.glyph,
+        secondaryGlyphColor: theme.secondary,
+        scoreInfoColor: theme.info,
+        barNumberColor: theme.barNumber
+      }
     },
     player: {
       playerMode: "enabledSynthesizer",

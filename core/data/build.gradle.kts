@@ -31,6 +31,7 @@ kotlin {
 dependencies {
     api(project(":core:model"))
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.datastore.preferences)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 

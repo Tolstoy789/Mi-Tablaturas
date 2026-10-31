@@ -1,3 +1,10 @@
 <resources>
     <style name="Theme.MiTablaturas" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Pantalla de inicio mientras se lee el diseño guardado. -->
+    <style name="Theme.MiTablaturas.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#FFF3F1FB</item>
+        <item name="windowSplashScreenAnimatedIcon">@android:drawable/sym_def_app_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.MiTablaturas</item>
+    </style>
 </resources>

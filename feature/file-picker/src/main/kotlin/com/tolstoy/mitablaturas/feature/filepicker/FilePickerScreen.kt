@@ -25,6 +25,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -46,6 +49,8 @@ fun FilePickerRoute(
     viewModel: FilePickerViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val design by viewModel.design.collectAsStateWithLifecycle()
+    var showDesignDialog by rememberSaveable { mutableStateOf(false) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         viewModel.onDocumentPicked(uri?.toString())
     }
@@ -54,8 +59,16 @@ fun FilePickerRoute(
         onOpenFile = { launcher.launch(PICKER_MIME_TYPES) },
         onDismissError = viewModel::onErrorDismissed,
         onOpenDocument = onOpenDocument,
+        onChangeDesign = { showDesignDialog = true },
         modifier = modifier,
     )
+    if (showDesignDialog) {
+        DesignPickerDialog(
+            selected = design,
+            onSelect = viewModel::onDesignSelected,
+            onDismiss = { showDesignDialog = false },
+        )
+    }
 }
 
 @Composable
@@ -65,6 +78,7 @@ fun FilePickerScreen(
     onDismissError: () -> Unit,
     onOpenDocument: (TabDocument) -> Unit,
     modifier: Modifier = Modifier,
+    onChangeDesign: () -> Unit = {},
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val isLandscape = maxWidth > maxHeight
@@ -92,7 +106,7 @@ fun FilePickerScreen(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Title()
+                    Title(onChangeDesign)
                     openCard()
                 }
                 Column(
@@ -111,7 +125,7 @@ fun FilePickerScreen(
                     .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Title()
+                Title(onChangeDesign)
                 openCard()
                 result()
             }
@@ -120,18 +134,22 @@ fun FilePickerScreen(
 }
 
 @Composable
-private fun Title() {
-    Text(
-        text = stringResource(R.string.file_picker_title),
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.Bold,
-    )
+private fun Title(onChangeDesign: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = stringResource(R.string.file_picker_title),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onChangeDesign) { Text(stringResource(R.string.design_button)) }
+    }
 }
 
 @Composable
 private fun OpenFileCard(isLoading: Boolean, onOpenFile: () -> Unit) {
     Card(
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -163,7 +181,7 @@ private fun OpenFileCard(isLoading: Boolean, onOpenFile: () -> Unit) {
 @Composable
 private fun DocumentCard(document: TabDocument, onOpen: (TabDocument) -> Unit) {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -216,7 +234,7 @@ private fun FormatBadge(format: TabFormat) {
 @Composable
 private fun ErrorCard(error: FilePickerError, onDismiss: () -> Unit) {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.errorContainer,
             contentColor = MaterialTheme.colorScheme.onErrorContainer,

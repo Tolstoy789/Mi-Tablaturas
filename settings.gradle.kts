@@ -25,5 +25,6 @@ rootProject.name = "MiTablaturas"
 include(":app")
 include(":core:model")
 include(":core:data")
+include(":core:designsystem")
 include(":feature:file-picker")
 include(":feature:tab-viewer")

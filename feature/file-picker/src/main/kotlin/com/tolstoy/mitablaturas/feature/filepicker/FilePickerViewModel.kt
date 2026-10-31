@@ -3,18 +3,31 @@ package com.tolstoy.mitablaturas.feature.filepicker
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tolstoy.mitablaturas.core.data.file.TabFileRepository
+import com.tolstoy.mitablaturas.core.data.preferences.UserPreferencesRepository
+import com.tolstoy.mitablaturas.core.model.AppDesign
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class FilePickerViewModel @Inject constructor(
     private val repository: TabFileRepository,
+    private val preferences: UserPreferencesRepository,
 ) : ViewModel() {
+
+    /** Diseño elegido por el usuario; se guarda entre sesiones. */
+    val design: StateFlow<AppDesign> = preferences.design
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppDesign.DEFAULT)
+
+    fun onDesignSelected(design: AppDesign) {
+        viewModelScope.launch { preferences.setDesign(design) }
+    }
 
     private val _uiState = MutableStateFlow<FilePickerUiState>(FilePickerUiState.Idle)
     val uiState: StateFlow<FilePickerUiState> = _uiState.asStateFlow()

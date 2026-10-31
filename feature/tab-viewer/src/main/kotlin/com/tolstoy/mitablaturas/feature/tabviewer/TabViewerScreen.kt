@@ -29,7 +29,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -39,6 +38,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tolstoy.mitablaturas.core.designsystem.LocalScoreSheetStyle
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.AlphaTabEvent
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.PlayerCommand
 import kotlinx.coroutines.flow.Flow
@@ -159,13 +159,16 @@ private fun ScoreSheet(
     onEngineEvent: (AlphaTabEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(shape = RoundedCornerShape(18.dp), color = Color.White, modifier = modifier) {
+    val sheetStyle = LocalScoreSheetStyle.current
+    Surface(shape = MaterialTheme.shapes.large, color = sheetStyle.background, modifier = modifier) {
         Box(Modifier.fillMaxSize()) {
             val error = uiState.error
             val score = uiState.score
             if (score != null && error !is TabViewerError.Engine) {
                 TabViewerWebView(
                     score = score,
+                    webTheme = sheetStyle.webTheme,
+                    background = sheetStyle.background,
                     commands = commands,
                     onEvent = onEngineEvent,
                     modifier = Modifier.fillMaxSize(),
@@ -215,20 +218,21 @@ private fun Header(uiState: TabViewerUiState, onBack: () -> Unit) {
 
 @Composable
 private fun TrackChips(names: List<String>, selected: Int, onSelected: (Int) -> Unit, vertical: Boolean) {
+    val colors = MaterialTheme.colorScheme
     val palette = listOf(
-        MaterialTheme.colorScheme.primary to MaterialTheme.colorScheme.primaryContainer,
-        MaterialTheme.colorScheme.secondary to MaterialTheme.colorScheme.secondaryContainer,
-        MaterialTheme.colorScheme.tertiary to MaterialTheme.colorScheme.tertiaryContainer,
+        Triple(colors.primary, colors.onPrimary, colors.primaryContainer),
+        Triple(colors.secondary, colors.onSecondary, colors.secondaryContainer),
+        Triple(colors.tertiary, colors.onTertiary, colors.tertiaryContainer),
     )
     val chips: @Composable () -> Unit = {
         names.forEachIndexed { index, name ->
-            val (strong, soft) = palette[index % palette.size]
+            val (strong, onStrong, soft) = palette[index % palette.size]
             val isSelected = index == selected
             Surface(
                 onClick = { onSelected(index) },
-                shape = RoundedCornerShape(10.dp),
+                shape = MaterialTheme.shapes.small,
                 color = if (isSelected) strong else soft,
-                contentColor = if (isSelected) Color.White else strong,
+                contentColor = if (isSelected) onStrong else strong,
                 modifier = if (vertical) Modifier.fillMaxWidth() else Modifier,
             ) {
                 Text(
@@ -349,7 +353,7 @@ private fun ToolPill(
     Surface(
         onClick = onClick,
         enabled = enabled,
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.small,
         color = if (enabled) container else container.copy(alpha = 0.4f),
         contentColor = content,
         modifier = modifier,

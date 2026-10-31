@@ -8,6 +8,12 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+// Firma de release: el workflow de release deja el keystore en RELEASE_KEYSTORE_PATH y pasa las
+// claves por variables de entorno (secretos del repositorio). Sin keystore, la release sale sin firmar.
+val releaseKeystore = providers.environmentVariable("RELEASE_KEYSTORE_PATH").orNull
+    ?.let(::file)
+    ?.takeIf { it.exists() }
+
 android {
     namespace = "com.tolstoy.mitablaturas"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -16,15 +22,29 @@ android {
         applicationId = "com.tolstoy.mitablaturas"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "0.1.0"
+        // El workflow de release los toma del tag (v1.2.0) y del número de ejecución.
+        versionCode = providers.environmentVariable("VERSION_CODE").orNull?.toIntOrNull() ?: 1
+        versionName = providers.environmentVariable("VERSION_NAME").orNull ?: "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = providers.environmentVariable("RELEASE_KEYSTORE_PASSWORD").orNull
+                keyAlias = providers.environmentVariable("RELEASE_KEY_ALIAS").orNull
+                keyPassword = providers.environmentVariable("RELEASE_KEY_PASSWORD").orNull
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
+            if (releaseKeystore != null) signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -62,6 +82,7 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":feature:file-picker"))
     implementation(project(":feature:tab-viewer"))
+    implementation(project(":feature:pdf-viewer"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

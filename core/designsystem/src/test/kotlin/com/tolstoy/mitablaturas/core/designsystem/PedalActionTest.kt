@@ -1,4 +1,4 @@
-package com.tolstoy.mitablaturas.feature.tabviewer
+package com.tolstoy.mitablaturas.core.designsystem
 
 import android.view.KeyEvent
 import org.junit.Assert.assertEquals

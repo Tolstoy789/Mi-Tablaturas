@@ -84,7 +84,10 @@
   var activeRange = null; // { startTick, endTick } del bucle A-B activo
 
   api.scoreLoaded.on(function (score) {
-    var names = score.tracks.map(function (t) { return t.name || ("Pista " + (t.index + 1)); });
+    // Nombre de reserva para pistas sin nombre. Igual que los textos de la app: inglés si el
+    // sistema está en inglés y español en los demás casos.
+    var trackLabel = /^en\b/i.test(navigator.language || "") ? "Track " : "Pista ";
+    var names = score.tracks.map(function (t) { return t.name || (trackLabel + (t.index + 1)); });
     native.onScoreLoaded(score.title || "", score.artist || "", names.join(SEP));
   });
   api.renderFinished.on(function () { native.onRenderFinished(); });

@@ -1,0 +1,36 @@
+<resources>
+    <string name="file_picker_title">My tabs</string>
+    <string name="file_picker_card_title">Open a tab</string>
+    <string name="file_picker_card_body">Guitar Pro (.gp3, .gp4, .gp5, .gpx, .gp) or PDF from your phone or the cloud.</string>
+    <string name="file_picker_open">Open file</string>
+    <string name="file_picker_view">View</string>
+    <string name="file_picker_dismiss">Got it</string>
+    <string name="file_picker_format_gp">Guitar Pro</string>
+    <string name="file_picker_format_pdf">PDF</string>
+    <string name="file_picker_error_format">“%1$s” is not a supported tab. Choose a .gp3, .gp4, .gp5, .gpx, .gp or .pdf file.</string>
+    <string name="file_picker_error_empty">“%1$s” is empty or damaged.</string>
+    <string name="file_picker_error_too_large">“%1$s” is larger than the %2$d MB limit.</string>
+    <string name="file_picker_error_unreadable">The file could not be read. Check that it still exists and try again.</string>
+    <string name="library_title">Library</string>
+    <string name="library_filter_all">All</string>
+    <string name="library_filter_guitar_pro">Guitar Pro</string>
+    <string name="library_filter_pdf">PDF</string>
+    <string name="library_filter_favorites">Favorites</string>
+    <string name="library_empty_filter">No tabs match this filter.</string>
+    <string name="library_empty_favorites">Tap ☆ on a song to keep it here.</string>
+    <string name="library_favorite_add">Add to favorites</string>
+    <string name="library_favorite_remove">Remove from favorites</string>
+    <string name="library_more">More options</string>
+    <string name="library_remove">Remove from library</string>
+    <string name="library_speed">%1$d%%</string>
+    <string name="file_picker_licenses">About and licenses</string>
+    <string name="design_button">Design</string>
+    <string name="design_dialog_title">Choose a design</string>
+    <string name="design_dialog_done">Done</string>
+    <string name="design_atril">Atril</string>
+    <string name="design_atril_description">Light and understated. The score takes center stage.</string>
+    <string name="design_escenario">Escenario</string>
+    <string name="design_escenario_description">Dark and high contrast, for playing in low light.</string>
+    <string name="design_taller">Taller</string>
+    <string name="design_taller_description">Colorful and made for practice. Follows the system dark mode.</string>
+</resources>

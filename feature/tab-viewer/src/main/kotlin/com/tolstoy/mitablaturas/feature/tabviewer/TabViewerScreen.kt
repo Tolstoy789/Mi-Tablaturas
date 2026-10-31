@@ -1,16 +1,6 @@
 package com.tolstoy.mitablaturas.feature.tabviewer
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.focusable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
@@ -52,7 +43,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tolstoy.mitablaturas.core.designsystem.KeepScreenOnEffect
 import com.tolstoy.mitablaturas.core.designsystem.LocalScoreSheetStyle
+import com.tolstoy.mitablaturas.core.designsystem.pedalInput
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.AlphaTabEvent
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.PlayerCommand
 import kotlinx.coroutines.flow.Flow
@@ -62,10 +55,13 @@ import kotlin.math.roundToInt
 @Composable
 fun TabViewerRoute(
     onBack: () -> Unit,
+    onOpenPdf: (uri: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TabViewerViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val pdfUri = uiState.openAsPdf
+    LaunchedEffect(pdfUri) { if (pdfUri != null) onOpenPdf(pdfUri) }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onBackgrounded() }
     KeepScreenOnEffect()
     PlaybackInterruptionsEffect(isPlaying = uiState.isPlaying, onInterrupted = viewModel::onAudioInterrupted)
@@ -94,28 +90,6 @@ fun TabViewerRoute(
         ),
         modifier = modifier.pedalInput(viewModel::onPedal),
     )
-}
-
-/**
- * Recibe las teclas de un pedal Bluetooth o teclado cuando el foco no está en la partitura.
- * El visor pide el foco al abrirse para que el pedal funcione sin tocar la pantalla.
- */
-@Composable
-private fun Modifier.pedalInput(onPedal: (PedalAction) -> Unit): Modifier {
-    val focusRequester = remember { FocusRequester() }
-    var viewerFocused by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
-    // onKeyEvent y onFocusChanged van antes de focusable() para recibir lo que llega a ese foco.
-    return this
-        .onKeyEvent { event ->
-            if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-            val action = pedalActionFor(event.nativeKeyEvent.keyCode, viewerFocused) ?: return@onKeyEvent false
-            onPedal(action)
-            true
-        }
-        .onFocusChanged { viewerFocused = it.isFocused }
-        .focusRequester(focusRequester)
-        .focusable()
 }
 
 /** Agrupa las lambdas en una clase estable para evitar recomposiciones al cambiar la posición. */
@@ -554,7 +528,6 @@ private fun ErrorMessage(error: TabViewerError, onRemoveFromLibrary: () -> Unit,
     val text = when (error) {
         TabViewerError.FileUnreadable -> stringResource(R.string.tab_viewer_error_unreadable)
         TabViewerError.Unsupported -> stringResource(R.string.tab_viewer_error_unsupported)
-        TabViewerError.NotInteractive -> stringResource(R.string.tab_viewer_error_not_interactive)
         is TabViewerError.Engine -> stringResource(R.string.tab_viewer_error_engine)
     }
     Column(

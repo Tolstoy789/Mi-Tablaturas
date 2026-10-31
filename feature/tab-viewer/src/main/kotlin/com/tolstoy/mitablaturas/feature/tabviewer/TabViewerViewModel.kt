@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.tolstoy.mitablaturas.core.data.di.ApplicationScope
 import com.tolstoy.mitablaturas.core.data.file.TabFileRepository
 import com.tolstoy.mitablaturas.core.data.library.LibraryRepository
+import com.tolstoy.mitablaturas.core.designsystem.PedalAction
 import com.tolstoy.mitablaturas.core.model.PracticeSettings
 import com.tolstoy.mitablaturas.core.model.TabDocument
 import com.tolstoy.mitablaturas.core.model.TabFileException
@@ -64,7 +65,8 @@ class TabViewerViewModel @Inject constructor(
             }
             _uiState.update { it.copy(fileName = document.displayName) }
             if (!document.format.isInteractive) {
-                _uiState.update { it.copy(error = TabViewerError.NotInteractive, isRendering = false) }
+                // Un PDF que llegó desde otra app como archivo genérico: se abre en su visor.
+                _uiState.update { it.copy(openAsPdf = uri, isRendering = false) }
                 return@launch
             }
             val bytes = repository.readBytes(document).getOrElse {

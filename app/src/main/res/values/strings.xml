@@ -1,3 +1,13 @@
 <resources>
-    <string name="app_name">Mi Tablaturas</string>
+    <string name="app_name" translatable="false">Mi Tablaturas</string>
+    <string name="licenses_back">‹ Volver</string>
+    <string name="licenses_title">Acerca de y licencias</string>
+    <string name="licenses_app_version">%1$s %2$s</string>
+    <string name="licenses_intro">Mi Tablaturas usa estos componentes de código abierto. Toca uno para ver su licencia.</string>
+    <string name="licenses_show_text">Ver la licencia completa</string>
+    <string name="licenses_see_link">Consulta el texto completo de la licencia en el enlace.</string>
+    <string name="licenses_role_alphatab">Dibuja y reproduce las partituras de Guitar Pro.</string>
+    <string name="licenses_role_bravura">Fuente musical de la partitura.</string>
+    <string name="licenses_role_sonivox">Sonidos de los instrumentos (SoundFont).</string>
+    <string name="licenses_role_platform">Base de la app: interfaz, navegación, base de datos e inyección de dependencias.</string>
 </resources>

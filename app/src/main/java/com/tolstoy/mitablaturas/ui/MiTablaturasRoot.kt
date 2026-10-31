@@ -14,14 +14,25 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.tolstoy.mitablaturas.core.model.TabDocument
+import com.tolstoy.mitablaturas.core.model.TabFormat
 import com.tolstoy.mitablaturas.feature.filepicker.FilePickerRoute
+import com.tolstoy.mitablaturas.feature.pdfviewer.PdfViewerRoute
+import com.tolstoy.mitablaturas.feature.pdfviewer.PdfViewerViewModel
 import com.tolstoy.mitablaturas.feature.tabviewer.TabViewerRoute
 import com.tolstoy.mitablaturas.feature.tabviewer.TabViewerViewModel
 
 private const val ROUTE_PICKER = "picker"
 private const val ROUTE_VIEWER = "viewer?${TabViewerViewModel.ARG_URI}={${TabViewerViewModel.ARG_URI}}"
+private const val ROUTE_PDF = "pdf?${PdfViewerViewModel.ARG_URI}={${PdfViewerViewModel.ARG_URI}}"
+private const val ROUTE_LICENSES = "licenses"
 
 private fun viewerRoute(uri: String) = "viewer?${TabViewerViewModel.ARG_URI}=${Uri.encode(uri)}"
+private fun pdfRoute(uri: String) = "pdf?${PdfViewerViewModel.ARG_URI}=${Uri.encode(uri)}"
+
+/** Visor que corresponde al formato: AlphaTab para Guitar Pro, PdfRenderer para PDF. */
+private fun routeFor(document: TabDocument) =
+    if (document.format == TabFormat.PDF) pdfRoute(document.uri) else viewerRoute(document.uri)
 
 /**
  * @param pendingDocument URI que otra app pidió abrir; se muestra en el visor y se avisa con
@@ -51,13 +62,29 @@ fun MiTablaturasRoot(
             modifier = Modifier.padding(innerPadding),
         ) {
             composable(ROUTE_PICKER) {
-                FilePickerRoute(onOpenDocument = { document -> navController.navigate(viewerRoute(document.uri)) })
+                FilePickerRoute(
+                    onOpenDocument = { document -> navController.navigate(routeFor(document)) },
+                    onOpenLicenses = { navController.navigate(ROUTE_LICENSES) },
+                )
             }
             composable(
                 route = ROUTE_VIEWER,
                 arguments = listOf(navArgument(TabViewerViewModel.ARG_URI) { type = NavType.StringType }),
             ) {
-                TabViewerRoute(onBack = { navController.popBackStack() })
+                TabViewerRoute(
+                    onBack = { navController.popBackStack() },
+                    // Sustituye el visor de tablaturas para que «Volver» lleve al inicio.
+                    onOpenPdf = { uri -> navController.navigate(pdfRoute(uri)) { popUpTo(ROUTE_PICKER) } },
+                )
+            }
+            composable(
+                route = ROUTE_PDF,
+                arguments = listOf(navArgument(PdfViewerViewModel.ARG_URI) { type = NavType.StringType }),
+            ) {
+                PdfViewerRoute(onBack = { navController.popBackStack() })
+            }
+            composable(ROUTE_LICENSES) {
+                LicensesScreen(onBack = { navController.popBackStack() })
             }
         }
     }

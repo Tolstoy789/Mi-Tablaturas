@@ -1,0 +1,2 @@
+@coderline/alphatab 1.8.4 (npm), files copied from package/dist:
+alphaTab.min.js, font/Bravura.woff2, font/Bravura.woff, font/Bravura-OFL.txt, soundfont/sonivox.sf2

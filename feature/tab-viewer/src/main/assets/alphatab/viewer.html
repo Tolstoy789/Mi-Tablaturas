@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Mi Tablaturas</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #ffffff; }
+  #viewport { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+  #score { padding: 8px 0 24px; }
+  .at-cursor-bar { background: rgba(91, 63, 209, 0.10); }
+  .at-cursor-beat { background: #5b3fd1; width: 3px; }
+  .at-highlight * { fill: #5b3fd1; stroke: #5b3fd1; }
+</style>
+</head>
+<body>
+<div id="viewport"><div id="score"></div></div>
+<script src="alphaTab.min.js"></script>
+<script src="bridge.js"></script>
+</body>
+</html>

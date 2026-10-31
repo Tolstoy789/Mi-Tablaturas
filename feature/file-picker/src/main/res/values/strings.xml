@@ -3,6 +3,8 @@
     <string name="file_picker_card_title">Abre una tablatura</string>
     <string name="file_picker_card_body">Guitar Pro (.gp3, .gp4, .gp5, .gpx, .gp) o PDF desde tu teléfono o la nube.</string>
     <string name="file_picker_open">Abrir archivo</string>
+    <string name="file_picker_view">Ver</string>
+    <string name="file_picker_pdf_soon">PDF pronto</string>
     <string name="file_picker_dismiss">Entendido</string>
     <string name="file_picker_format_gp">Guitar Pro</string>
     <string name="file_picker_format_pdf">PDF</string>

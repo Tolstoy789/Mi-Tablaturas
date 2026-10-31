@@ -40,7 +40,7 @@ jobs:
         run: ./gradlew :app:assembleDebug --stacktrace
 
       - name: Subir APK debug
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/*.apk
@@ -48,7 +48,7 @@ jobs:
 
       - name: Subir informe de lint
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: lint-report
           path: app/build/reports/lint-results-debug.html

@@ -134,12 +134,16 @@ fun FilePickerScreen(
 }
 
 @Composable
-private fun Title(onChangeDesign) {
-    Text(
-        text = stringResource(R.string.file_picker_title),
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.Bold,
-    )
+private fun Title(onChangeDesign: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = stringResource(R.string.file_picker_title),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onChangeDesign) { Text(stringResource(R.string.design_button)) }
+    }
 }
 
 @Composable

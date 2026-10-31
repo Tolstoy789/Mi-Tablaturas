@@ -1,0 +1,45 @@
+name: Emulador
+
+# Abre una tablatura en el WebView de un emulador Android y comprueba que la partitura se ve.
+on:
+  push:
+    branches: [ "ci/emulator-smoke" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Compilar las pruebas instrumentadas
+        run: ./gradlew :feature:tab-viewer:assembleDebugAndroidTest --stacktrace
+
+      - name: Activar KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Probar el visor en el emulador
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: .github/scripts/emulator-test.sh

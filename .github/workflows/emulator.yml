@@ -3,7 +3,8 @@ name: Emulador
 # Abre una tablatura en el WebView de un emulador Android y comprueba que la partitura se ve.
 on:
   push:
-    branches: [ "ci/emulator-smoke" ]
+    branches: [ "main" ]
+  pull_request:
   workflow_dispatch:
 
 permissions:

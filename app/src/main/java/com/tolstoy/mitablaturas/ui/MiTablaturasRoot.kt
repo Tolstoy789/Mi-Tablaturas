@@ -1,8 +1,10 @@
 package com.tolstoy.mitablaturas.ui
 
 import android.net.Uri
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -23,7 +25,11 @@ private fun viewerRoute(uri: String) = "viewer?${TabViewerViewModel.ARG_URI}=${U
 @Composable
 fun MiTablaturasRoot(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
-    Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
+    // safeDrawing incluye el recorte de cámara, que en horizontal queda a un lado de la pantalla.
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets.safeDrawing,
+    ) { innerPadding ->
         NavHost(
             navController = navController,
             startDestination = ROUTE_PICKER,

@@ -11,6 +11,8 @@ composeBom = "2025.10.01"
 coroutines = "1.10.2"
 webkit = "1.14.0"
 navigation = "2.9.5"
+datastore = "1.1.7"
+splashscreen = "1.0.1"
 junit = "4.13.2"
 
 compileSdk = "36"
@@ -40,6 +42,8 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 
 androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
+androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 

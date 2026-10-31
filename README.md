@@ -24,12 +24,25 @@ App nativa de Android para abrir, renderizar y reproducir tablaturas de guitarra
 ```
 app/                    Punto de entrada, tema, navegación
 core/model/             Modelos puros de Kotlin (TabFormat, TabDocument)
-core/data/              Repositorios, acceso a archivos, dispatchers (Hilt)
+core/data/              Repositorios, acceso a archivos, preferencias (DataStore), Hilt
+core/designsystem/      Temas Atril, Escenario y Taller (Material 3)
 feature/file-picker/    Selección de archivos con SAF
 feature/tab-viewer/     Visor AlphaTab (WebView + puente JS)
 ```
 
 `feature/pdf-viewer` se añadirá cuando llegue el visor de PDF.
+
+## Diseños
+
+El usuario elige el diseño desde el botón **Diseño** de la pantalla de inicio; la elección se guarda con DataStore.
+
+| Diseño | Estilo |
+| --- | --- |
+| Atril | Claro, papel y tinta con acento cobalto |
+| Escenario | Oscuro, alto contraste con acento ámbar |
+| Taller (por defecto) | Violeta expresivo; sigue el modo oscuro del sistema |
+
+Los colores de la app están en `core/designsystem/.../Theme.kt` y los de la partitura de AlphaTab en `THEMES` de `assets/alphatab/bridge.js`; si cambias unos, actualiza los otros.
 
 ## Assets de AlphaTab
 

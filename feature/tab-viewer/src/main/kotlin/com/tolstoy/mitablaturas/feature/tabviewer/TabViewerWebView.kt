@@ -3,7 +3,7 @@ package com.tolstoy.mitablaturas.feature.tabviewer
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.ApplicationInfo
-import android.graphics.Color
+import android.net.Uri
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -15,6 +15,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.AlphaTabBridge
@@ -25,6 +27,9 @@ import java.io.ByteArrayInputStream
 
 private const val VIEWER_URL = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}/assets/alphatab/viewer.html"
 
+/** URL del visor con el tema de colores que aplica `bridge.js` (atril, escenario o taller). */
+internal fun viewerUrl(webTheme: String): String = "$VIEWER_URL?theme=${Uri.encode(webTheme)}"
+
 /**
  * WebView con AlphaTab servido desde `assets/` mediante [WebViewAssetLoader] (origen https,
  * sin acceso a `file://`). La partitura se sirve en `/score/current` desde memoria.
@@ -33,6 +38,8 @@ private const val VIEWER_URL = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}/ass
 @Composable
 fun TabViewerWebView(
     score: ScoreBytes,
+    webTheme: String,
+    background: Color,
     commands: Flow<PlayerCommand>,
     onEvent: (AlphaTabEvent) -> Unit,
     modifier: Modifier = Modifier,
@@ -45,11 +52,11 @@ fun TabViewerWebView(
     AndroidView(
         modifier = modifier,
         factory = { context ->
-            createWebView(context, bridge, scoreProvider = { currentScore.bytes }) { message ->
+            createWebView(context, bridge, background.toArgb(), scoreProvider = { currentScore.bytes }) { message ->
                 currentOnEvent(AlphaTabEvent.Error(message))
             }.also {
                 holder.webView = it
-                it.loadUrl(VIEWER_URL)
+                it.loadUrl(viewerUrl(webTheme))
             }
         },
         onRelease = { webView ->
@@ -76,6 +83,7 @@ private class WebViewHolder {
 private fun createWebView(
     context: Context,
     bridge: AlphaTabBridge,
+    backgroundColor: Int,
     scoreProvider: () -> ByteArray,
     onLoadError: (String) -> Unit,
 ): WebView {
@@ -94,7 +102,7 @@ private fun createWebView(
         .build()
 
     return WebView(context).apply {
-        setBackgroundColor(Color.WHITE)
+        setBackgroundColor(backgroundColor)
         settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true

@@ -5,12 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Mi Tablaturas</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #ffffff; }
+  :root { --sheet: #ffffff; --accent: #5b3fd1; --accent-soft: rgba(91, 63, 209, 0.10); }
+  html, body { margin: 0; height: 100%; background: var(--sheet); }
   #viewport { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
   #score { padding: 8px 0 24px; }
-  .at-cursor-bar { background: rgba(91, 63, 209, 0.10); }
-  .at-cursor-beat { background: #5b3fd1; width: 3px; }
-  .at-highlight * { fill: #5b3fd1; stroke: #5b3fd1; }
+  .at-cursor-bar { background: var(--accent-soft); }
+  .at-cursor-beat { background: var(--accent); width: 3px; }
+  .at-highlight * { fill: var(--accent); stroke: var(--accent); }
 </style>
 </head>
 <body>

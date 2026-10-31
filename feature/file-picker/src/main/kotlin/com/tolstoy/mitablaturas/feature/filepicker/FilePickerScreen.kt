@@ -38,6 +38,7 @@ private val PICKER_MIME_TYPES = arrayOf("*/*")
 
 @Composable
 fun FilePickerRoute(
+    onOpenDocument: (TabDocument) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: FilePickerViewModel = hiltViewModel(),
 ) {
@@ -49,6 +50,7 @@ fun FilePickerRoute(
         uiState = uiState,
         onOpenFile = { launcher.launch(PICKER_MIME_TYPES) },
         onDismissError = viewModel::onErrorDismissed,
+        onOpenDocument = onOpenDocument,
         modifier = modifier,
     )
 }
@@ -58,6 +60,7 @@ fun FilePickerScreen(
     uiState: FilePickerUiState,
     onOpenFile: () -> Unit,
     onDismissError: () -> Unit,
+    onOpenDocument: (TabDocument) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -73,7 +76,7 @@ fun FilePickerScreen(
         )
         OpenFileCard(isLoading = uiState is FilePickerUiState.Loading, onOpenFile = onOpenFile)
         when (uiState) {
-            is FilePickerUiState.Ready -> DocumentCard(uiState.document)
+            is FilePickerUiState.Ready -> DocumentCard(uiState.document, onOpenDocument)
             is FilePickerUiState.Error -> ErrorCard(uiState.error, onDismissError)
             FilePickerUiState.Idle, FilePickerUiState.Loading -> Unit
         }
@@ -113,7 +116,7 @@ private fun OpenFileCard(isLoading: Boolean, onOpenFile: () -> Unit) {
 }
 
 @Composable
-private fun DocumentCard(document: TabDocument) {
+private fun DocumentCard(document: TabDocument, onOpen: (TabDocument) -> Unit) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -130,6 +133,17 @@ private fun DocumentCard(document: TabDocument) {
                 Text(
                     text = listOfNotNull(document.format.label(), document.sizeBytes?.let(::formatSize)).joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (document.format.isInteractive) {
+                Button(onClick = { onOpen(document) }) {
+                    Text(stringResource(R.string.file_picker_view))
+                }
+            } else {
+                Text(
+                    text = stringResource(R.string.file_picker_pdf_soon),
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -205,6 +219,7 @@ private fun FilePickerScreenReadyPreview() {
             ),
             onOpenFile = {},
             onDismissError = {},
+            onOpenDocument = {},
         )
     }
 }

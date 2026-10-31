@@ -5,7 +5,7 @@ App nativa de Android para abrir, renderizar y reproducir tablaturas de guitarra
 - **Interactivas (Guitar Pro):** `.gp3`, `.gp4`, `.gp5`, `.gpx`, `.gp`, renderizadas con [AlphaTab](https://alphatab.net) en un `WebView` local, con audio vía Web Audio API y un SoundFont `.sf2`.
 - **Estáticas:** `.pdf`, con `android.graphics.pdf.PdfRenderer`.
 
-> Estado: esqueleto inicial. El primer objetivo es abrir y reproducir un `.gp5`.
+> Estado: abre archivos con el selector de Android y reproduce tablaturas Guitar Pro con AlphaTab. El visor de PDF está pendiente.
 
 ## Stack
 
@@ -33,14 +33,27 @@ feature/tab-viewer/     Visor AlphaTab (WebView + puente JS)
 
 ## Assets de AlphaTab
 
-AlphaTab y el SoundFont se empaquetan en el APK para que todo funcione sin conexión:
+AlphaTab y el SoundFont van empaquetados en el APK para que todo funcione sin conexión:
 
 ```
 feature/tab-viewer/src/main/assets/alphatab/
-├── alphaTab.min.js        Bundle de @coderline/alphatab
-├── font/                  Fuentes Bravura que usa AlphaTab
-├── soundfont/sonivox.sf2  SoundFont para el sintetizador
-└── viewer.html            Página que carga AlphaTab y expone el puente
+├── alphaTab.min.js        @coderline/alphatab 1.8.4 (MPL-2.0)
+├── bridge.js              Puente JS <-> Kotlin (window.tab / window.AndroidBridge)
+├── viewer.html            Página que carga AlphaTab
+├── font/Bravura.woff2     Fuente musical (SIL OFL 1.1)
+└── soundfont/sonivox.sf2  SoundFont del sintetizador (Apache 2.0)
+```
+
+El WebView sirve estos archivos con `WebViewAssetLoader` en `https://appassets.androidplatform.net/assets/alphatab/`, y la partitura abierta en `/score/current`, sin habilitar acceso a `file://`.
+
+Para actualizar AlphaTab:
+
+```bash
+npm pack @coderline/alphatab@<versión>
+tar xzf coderline-alphatab-<versión>.tgz
+cp package/dist/alphaTab.min.js feature/tab-viewer/src/main/assets/alphatab/
+cp package/dist/font/Bravura.woff* feature/tab-viewer/src/main/assets/alphatab/font/
+cp package/dist/soundfont/sonivox.sf2 feature/tab-viewer/src/main/assets/alphatab/soundfont/
 ```
 
 ## Requisitos
@@ -69,5 +82,6 @@ Cada push y pull request ejecuta los tests y compila el APK debug en GitHub Acti
 
 ## Licencias de terceros
 
-- AlphaTab: MPL-2.0
-- SoundFont: se documentará su licencia al añadirlo.
+- AlphaTab: MPL-2.0 (`assets/alphatab/LICENSE-alphaTab.txt`)
+- Bravura: SIL Open Font License 1.1 (`assets/alphatab/font/Bravura-OFL.txt`)
+- Sonivox SoundFont: Apache 2.0 (`assets/alphatab/soundfont/LICENSE-sonivox.txt`)

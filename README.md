@@ -103,6 +103,8 @@ Dependabot (`.github/dependabot.yml`) propone cada lunes las actualizaciones de 
 
 Para exigir el CI en verde antes de cada merge, activa en GitHub **Settings → Branches → Add rule** para `main` con *Require status checks to pass* y marca el check `build`.
 
+`.github/workflows/emulator.yml` abre una tablatura en el WebView de un emulador con Android 14 y comprueba que la partitura se dibuja y ocupa el visor (`TabViewerWebViewTest`). Las pruebas en Chromium no detectan los fallos propios del WebView de Android, como el visor con 0 px de alto.
+
 El CI también compila la release con R8 (`:app:assembleRelease`, sin firmar) para detectar a tiempo clases que R8 elimine por error.
 
 ## Publicar una versión

@@ -5,6 +5,7 @@
     <string name="tab_viewer_stop">Detener</string>
     <string name="tab_viewer_loop">Repetir</string>
     <string name="tab_viewer_metronome">Metrónomo</string>
+    <string name="tab_viewer_tracks">Pistas</string>
     <string name="tab_viewer_speed">Velocidad</string>
     <string name="tab_viewer_error_unreadable">No se pudo leer el archivo. Puede que se haya movido o borrado; ábrelo de nuevo desde el inicio.</string>
     <string name="tab_viewer_error_not_interactive">Este archivo es un PDF. El visor de PDF llegará en una próxima versión.</string>

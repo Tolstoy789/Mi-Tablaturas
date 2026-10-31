@@ -5,13 +5,16 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -63,24 +66,66 @@ fun FilePickerScreen(
     onOpenDocument: (TabDocument) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text(
-            text = stringResource(R.string.file_picker_title),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-        )
-        OpenFileCard(isLoading = uiState is FilePickerUiState.Loading, onOpenFile = onOpenFile)
-        when (uiState) {
-            is FilePickerUiState.Ready -> DocumentCard(uiState.document, onOpenDocument)
-            is FilePickerUiState.Error -> ErrorCard(uiState.error, onDismissError)
-            FilePickerUiState.Idle, FilePickerUiState.Loading -> Unit
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val isLandscape = maxWidth > maxHeight
+        val result: @Composable () -> Unit = {
+            when (uiState) {
+                is FilePickerUiState.Ready -> DocumentCard(uiState.document, onOpenDocument)
+                is FilePickerUiState.Error -> ErrorCard(uiState.error, onDismissError)
+                FilePickerUiState.Idle, FilePickerUiState.Loading -> Unit
+            }
+        }
+        val openCard: @Composable () -> Unit = {
+            OpenFileCard(isLoading = uiState is FilePickerUiState.Loading, onOpenFile = onOpenFile)
+        }
+        if (isLandscape) {
+            // En horizontal: título y tarjeta para abrir a la izquierda, resultado a la derecha.
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Title()
+                    openCard()
+                }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(top = 44.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) { result() }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Title()
+                openCard()
+                result()
+            }
         }
     }
+}
+
+@Composable
+private fun Title() {
+    Text(
+        text = stringResource(R.string.file_picker_title),
+        style = MaterialTheme.typography.headlineSmall,
+        fontWeight = FontWeight.Bold,
+    )
 }
 
 @Composable

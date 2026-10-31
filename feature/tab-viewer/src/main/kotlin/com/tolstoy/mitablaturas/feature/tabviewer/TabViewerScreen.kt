@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -29,7 +30,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,6 +57,8 @@ fun TabViewerRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onBackgrounded() }
+    KeepScreenOnEffect()
+    PlaybackInterruptionsEffect(isPlaying = uiState.isPlaying, onInterrupted = viewModel::onAudioInterrupted)
 
     TabViewerScreen(
         uiState = uiState,
@@ -274,6 +280,9 @@ private fun TrackChips(names: List<String>, selected: Int, onSelected: (Int) -> 
 private fun PracticeTools(uiState: TabViewerUiState, actions: TabViewerActions, compact: Boolean) {
     val enabled = uiState.isPlayerReady && uiState.error == null
     val playLabel = stringResource(if (uiState.isPlaying) R.string.tab_viewer_pause else R.string.tab_viewer_play)
+    val playDescription = stringResource(
+        if (uiState.isPlaying) R.string.tab_viewer_pause_description else R.string.tab_viewer_play_description,
+    )
     val stopLabel = stringResource(R.string.tab_viewer_stop)
     val loopLabel = stringResource(R.string.tab_viewer_loop)
     val metronomeLabel = stringResource(R.string.tab_viewer_metronome)
@@ -282,21 +291,31 @@ private fun PracticeTools(uiState: TabViewerUiState, actions: TabViewerActions, 
         modifier = if (compact) Modifier else Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        val play: @Composable (Modifier) -> Unit = {
+            ActionPill(playLabel, enabled, actions.onPlayPause, it, emphasized = true, description = playDescription)
+        }
+        val stop: @Composable (Modifier) -> Unit = { ActionPill(stopLabel, enabled, actions.onStop, it) }
+        val loop: @Composable (Modifier) -> Unit = {
+            TogglePill(loopLabel, uiState.isLooping, enabled, { actions.onLoopToggled() }, it)
+        }
+        val metronome: @Composable (Modifier) -> Unit = {
+            TogglePill(metronomeLabel, uiState.isMetronomeOn, enabled, { actions.onMetronomeToggled() }, it)
+        }
         if (compact) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ToolPill(playLabel, true, enabled, actions.onPlayPause, Modifier.weight(1f))
-                ToolPill(stopLabel, false, enabled, actions.onStop, Modifier.weight(1f))
+                play(Modifier.weight(1f))
+                stop(Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ToolPill(loopLabel, uiState.isLooping, enabled, actions.onLoopToggled, Modifier.weight(1f))
-                ToolPill(metronomeLabel, uiState.isMetronomeOn, enabled, actions.onMetronomeToggled, Modifier.weight(1f))
+                loop(Modifier.weight(1f))
+                metronome(Modifier.weight(1f))
             }
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ToolPill(playLabel, true, enabled, actions.onPlayPause, Modifier.weight(1f))
-                ToolPill(stopLabel, false, enabled, actions.onStop, Modifier.weight(1f))
-                ToolPill(loopLabel, uiState.isLooping, enabled, actions.onLoopToggled, Modifier.weight(1f))
-                ToolPill(metronomeLabel, uiState.isMetronomeOn, enabled, actions.onMetronomeToggled, Modifier.weight(1.3f))
+                play(Modifier.weight(1f))
+                stop(Modifier.weight(1f))
+                loop(Modifier.weight(1f))
+                metronome(Modifier.weight(1.3f))
             }
         }
         SpeedControl(uiState.speed, enabled, actions, stacked = compact)
@@ -340,24 +359,67 @@ private fun SpeedControl(speed: Float, enabled: Boolean, actions: TabViewerActio
     }
 }
 
+/** Altura mínima de los botones de práctica: objetivo táctil de 48 dp, cómodo con la guitarra en brazos. */
+private val PillMinHeight = 48.dp
+
+/** Botón de acción (reproducir, detener). [description] sustituye a [label] en TalkBack si los símbolos no se leen bien. */
 @Composable
-private fun ToolPill(
+private fun ActionPill(
     label: String,
-    active: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    emphasized: Boolean = false,
+    description: String = label,
 ) {
-    val container = if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surfaceVariant
-    val content = if (active) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurfaceVariant
+    val colors = pillColors(active = emphasized, enabled = enabled)
     Surface(
         onClick = onClick,
         enabled = enabled,
         shape = MaterialTheme.shapes.small,
-        color = if (enabled) container else container.copy(alpha = 0.4f),
-        contentColor = content,
-        modifier = modifier,
+        color = colors.first,
+        contentColor = colors.second,
+        modifier = modifier
+            .heightIn(min = PillMinHeight)
+            .semantics { contentDescription = description },
     ) {
+        PillLabel(label)
+    }
+}
+
+/** Interruptor (repetir, metrónomo): TalkBack anuncia si está activado. */
+@Composable
+private fun TogglePill(
+    label: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = pillColors(active = checked, enabled = enabled)
+    Surface(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        enabled = enabled,
+        shape = MaterialTheme.shapes.small,
+        color = colors.first,
+        contentColor = colors.second,
+        modifier = modifier.heightIn(min = PillMinHeight),
+    ) {
+        PillLabel(label)
+    }
+}
+
+@Composable
+private fun pillColors(active: Boolean, enabled: Boolean): Pair<Color, Color> {
+    val container = if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surfaceVariant
+    val content = if (active) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurfaceVariant
+    return (if (enabled) container else container.copy(alpha = 0.4f)) to content
+}
+
+@Composable
+private fun PillLabel(label: String) {
+    Box(contentAlignment = Alignment.Center) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
@@ -373,6 +435,7 @@ private fun ToolPill(
 private fun ErrorMessage(error: TabViewerError, modifier: Modifier = Modifier) {
     val text = when (error) {
         TabViewerError.FileUnreadable -> stringResource(R.string.tab_viewer_error_unreadable)
+        TabViewerError.Unsupported -> stringResource(R.string.tab_viewer_error_unsupported)
         TabViewerError.NotInteractive -> stringResource(R.string.tab_viewer_error_not_interactive)
         is TabViewerError.Engine -> stringResource(R.string.tab_viewer_error_engine)
     }

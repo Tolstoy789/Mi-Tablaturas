@@ -12,11 +12,16 @@ object TabDocumentValidator {
 
     /**
      * @param sizeBytes tamaño informado por el proveedor, o `null` si no lo informa.
+     * @param format formato detectado; por defecto, el de la extensión de [displayName].
      * @throws TabFileException si el archivo no es válido.
      */
-    fun validate(uri: String, displayName: String, sizeBytes: Long?): TabDocument {
-        val format = TabFormat.fromFileName(displayName)
-            ?: throw TabFileException.UnsupportedFormat(displayName)
+    fun validate(
+        uri: String,
+        displayName: String,
+        sizeBytes: Long?,
+        format: TabFormat? = TabFormat.fromFileName(displayName),
+    ): TabDocument {
+        if (format == null) throw TabFileException.UnsupportedFormat(displayName)
         checkSize(displayName, sizeBytes)
         return TabDocument(uri = uri, displayName = displayName, format = format, sizeBytes = sizeBytes)
     }

@@ -8,6 +8,7 @@ import android.provider.OpenableColumns
 import com.tolstoy.mitablaturas.core.data.di.IoDispatcher
 import com.tolstoy.mitablaturas.core.model.TabDocument
 import com.tolstoy.mitablaturas.core.model.TabFileException
+import com.tolstoy.mitablaturas.core.model.TabFormat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -28,7 +29,9 @@ class ContentResolverTabFileRepository @Inject constructor(
         runCatchingTab(fileName = null) {
             val parsed = Uri.parse(uri)
             val (displayName, size) = queryMetadata(parsed)
-            val document = TabDocumentValidator.validate(uri, displayName, size)
+            // Algunas apps comparten el archivo sin extensión en el nombre: se mira su cabecera.
+            val format = TabFormat.fromFileName(displayName) ?: sniffFormat(parsed)
+            val document = TabDocumentValidator.validate(uri, displayName, size, format)
             persistReadPermission(parsed)
             document
         }
@@ -56,6 +59,20 @@ class ContentResolverTabFileRepository @Inject constructor(
             }
         }
         throw TabFileException.Unreadable(uri.lastPathSegment)
+    }
+
+    private fun sniffFormat(uri: Uri): TabFormat? {
+        val stream = resolver.openInputStream(uri) ?: return null
+        val header = ByteArray(TabFormat.HEADER_SIZE)
+        var filled = 0
+        stream.use {
+            while (filled < header.size) {
+                val read = it.read(header, filled, header.size - filled)
+                if (read == -1) break
+                filled += read
+            }
+        }
+        return TabFormat.fromHeader(header.copyOf(filled))
     }
 
     /** No todos los proveedores conceden permisos persistentes; si falla, el archivo sigue abierto en esta sesión. */

@@ -38,4 +38,15 @@ class TabDocumentValidatorTest {
     fun `rechaza archivos demasiado grandes`() {
         TabDocumentValidator.validate(uri, "enorme.pdf", TabDocumentValidator.MAX_SIZE_BYTES + 1)
     }
+    @Test
+    fun `usa el formato detectado cuando el nombre no tiene extension`() {
+        val document = TabDocumentValidator.validate(uri, "1000123", 2048, TabFormat.GUITAR_PRO_5)
+        assertEquals(TabFormat.GUITAR_PRO_5, document.format)
+        assertEquals("1000123", document.displayName)
+    }
+
+    @Test(expected = TabFileException.UnsupportedFormat::class)
+    fun `rechaza un archivo sin extension ni cabecera reconocible`() {
+        TabDocumentValidator.validate(uri, "1000123", 2048, format = null)
+    }
 }

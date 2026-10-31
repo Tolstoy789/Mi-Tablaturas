@@ -31,6 +31,8 @@ class ScoreBytes(val bytes: ByteArray)
 sealed interface TabViewerError {
     /** No se pudo leer el archivo desde el almacenamiento. */
     data object FileUnreadable : TabViewerError
+    /** Otra app compartió un archivo que no es una tablatura compatible. */
+    data object Unsupported : TabViewerError
     /** El archivo no es un formato interactivo (p. ej. un PDF). */
     data object NotInteractive : TabViewerError
     /** AlphaTab no pudo interpretar el archivo, o falló el audio. */

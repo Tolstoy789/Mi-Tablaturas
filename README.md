@@ -2,10 +2,12 @@
 
 App nativa de Android para abrir, renderizar y reproducir tablaturas de guitarra.
 
-- **Interactivas (Guitar Pro):** `.gp3`, `.gp4`, `.gp5`, `.gpx`, `.gp`, renderizadas con [AlphaTab](https://alphatab.net) en un `WebView` local, con audio vía Web Audio API y un SoundFont `.sf2`.
+- **Interactivas (Guitar Pro):** `.gp3`, `.gp4`, `.gp5`, `.gpx`, `.gp`, renderizadas con [AlphaTab](https://alphatab.net) en un `WebView` local, con audio vía Web Audio API y un SoundFont `.sf3` (comprimido con Vorbis).
 - **Estáticas:** `.pdf`, con `android.graphics.pdf.PdfRenderer`.
 
-> Estado: abre archivos con el selector de Android y reproduce tablaturas Guitar Pro con AlphaTab. El visor de PDF está pendiente.
+> Estado: abre archivos con el selector de Android o desde otras apps (Ver y Compartir) y reproduce tablaturas Guitar Pro con AlphaTab. El visor de PDF está pendiente.
+
+En el visor la pantalla no se apaga, y la reproducción se pausa si la app pasa a segundo plano, entra una llamada, suena otra app o se desconectan los auriculares.
 
 ## Stack
 
@@ -54,7 +56,7 @@ feature/tab-viewer/src/main/assets/alphatab/
 ├── bridge.js              Puente JS <-> Kotlin (window.tab / window.AndroidBridge)
 ├── viewer.html            Página que carga AlphaTab
 ├── font/Bravura.woff2     Fuente musical (SIL OFL 1.1)
-└── soundfont/sonivox.sf2  SoundFont del sintetizador (Apache 2.0)
+└── soundfont/sonivox.sf3  SoundFont del sintetizador (Apache 2.0)
 ```
 
 El WebView sirve estos archivos con `WebViewAssetLoader` en `https://appassets.androidplatform.net/assets/alphatab/`, y la partitura abierta en `/score/current`, sin habilitar acceso a `file://`.
@@ -65,8 +67,8 @@ Para actualizar AlphaTab:
 npm pack @coderline/alphatab@<versión>
 tar xzf coderline-alphatab-<versión>.tgz
 cp package/dist/alphaTab.min.js feature/tab-viewer/src/main/assets/alphatab/
-cp package/dist/font/Bravura.woff* feature/tab-viewer/src/main/assets/alphatab/font/
-cp package/dist/soundfont/sonivox.sf2 feature/tab-viewer/src/main/assets/alphatab/soundfont/
+cp package/dist/font/Bravura.woff2 feature/tab-viewer/src/main/assets/alphatab/font/
+cp package/dist/soundfont/sonivox.sf3 feature/tab-viewer/src/main/assets/alphatab/soundfont/
 ```
 
 ## Requisitos

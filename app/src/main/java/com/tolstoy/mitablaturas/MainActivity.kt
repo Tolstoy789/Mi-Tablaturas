@@ -1,5 +1,6 @@
 package com.tolstoy.mitablaturas
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
@@ -33,6 +34,8 @@ class MainActivity : ComponentActivity() {
         }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Tras rotar o recrear la actividad, el archivo externo ya se abrió.
+        if (savedInstanceState == null) handleExternalDocument(intent)
         setContent {
             val design by viewModel.design.collectAsStateWithLifecycle()
             design?.let { current ->
@@ -48,10 +51,24 @@ class MainActivity : ComponentActivity() {
                     onDispose { }
                 }
                 MiTablaturasTheme(design = current) {
-                    MiTablaturasRoot()
+                    val pendingDocument by viewModel.pendingDocument.collectAsStateWithLifecycle()
+                    MiTablaturasRoot(
+                        pendingDocument = pendingDocument,
+                        onPendingDocumentOpened = viewModel::onPendingDocumentOpened,
+                    )
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleExternalDocument(intent)
+    }
+
+    private fun handleExternalDocument(intent: Intent) {
+        intent.externalDocumentUri()?.let { viewModel.onExternalDocument(it.toString()) }
     }
 
     private companion object {

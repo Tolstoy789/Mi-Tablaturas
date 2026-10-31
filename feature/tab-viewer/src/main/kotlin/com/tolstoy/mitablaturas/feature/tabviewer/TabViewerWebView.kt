@@ -3,6 +3,10 @@ package com.tolstoy.mitablaturas.feature.tabviewer
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.ApplicationInfo
+import android.util.Log
+import android.view.ViewGroup
+import android.webkit.ConsoleMessage
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -26,6 +30,7 @@ import kotlinx.coroutines.flow.Flow
 import java.io.ByteArrayInputStream
 import java.util.Locale
 
+private const val LOG_TAG = "AlphaTab"
 private const val VIEWER_URL = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}/assets/alphatab/viewer.html"
 
 /** URL del visor con los colores de la hoja, que `bridge.js` aplica a AlphaTab. */
@@ -118,6 +123,10 @@ private fun createWebView(
         .build()
 
     return WebView(context).apply {
+        // Sin MATCH_PARENT, AndroidView deja el WebView en WRAP_CONTENT y el WebView toma la
+        // altura de su contenido: la página mide 0 px de alto y la partitura no se ve, aunque
+        // AlphaTab la dibuje y suene.
+        layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         setBackgroundColor(backgroundColor)
         settings.apply {
             javaScriptEnabled = true
@@ -128,6 +137,15 @@ private fun createWebView(
             builtInZoomControls = false
         }
         addJavascriptInterface(bridge, AlphaTabBridge.JS_NAME)
+        if (isDebuggable) {
+            // En debug, la consola de la página (avisos de AlphaTab incluidos) va a Logcat.
+            webChromeClient = object : WebChromeClient() {
+                override fun onConsoleMessage(message: ConsoleMessage): Boolean {
+                    Log.d(LOG_TAG, "${message.messageLevel()}: ${message.message()} (${message.sourceId()}:${message.lineNumber()})")
+                    return true
+                }
+            }
+        }
         webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
                 assetLoader.shouldInterceptRequest(request.url)

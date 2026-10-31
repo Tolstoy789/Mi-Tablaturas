@@ -55,9 +55,8 @@
       fontDirectory: base + "font/",
       scriptFile: base + "alphaTab.min.js",
       useWorkers: true,
-      // Con la carga diferida, AlphaTab solo dibuja cada trozo de la partitura cuando un
-      // IntersectionObserver avisa de que es visible, y en el WebView de Android ese aviso
-      // puede no llegar nunca: la hoja quedaba en blanco aunque sonara. Se dibuja todo de una vez.
+      // Se dibuja toda la partitura de una vez, sin esperar a que cada trozo sea visible
+      // (IntersectionObserver): así el pedal y el cursor nunca llegan a un trozo en blanco.
       enableLazyLoading: false
     },
     display: {
@@ -99,6 +98,9 @@
     // Al cambiar de pista se vuelve a dibujar la partitura: hay que volver a marcar el A-B
     // (postRenderFinished llega cuando ya se conocen las posiciones de cada compás).
     if (activeRange) highlightRange(activeRange);
+    // Diagnóstico en Logcat (WebView): tamaño del visor y trozos de partitura dibujados.
+    console.info("Mi Tablaturas: visor " + viewport.clientWidth + "x" + viewport.clientHeight +
+      ", svg " + document.querySelectorAll("#score svg").length);
   });
   api.playerReady.on(function () { native.onPlayerReady(); });
   api.playerStateChanged.on(function (e) { native.onPlayerStateChanged(e.state === 1); });

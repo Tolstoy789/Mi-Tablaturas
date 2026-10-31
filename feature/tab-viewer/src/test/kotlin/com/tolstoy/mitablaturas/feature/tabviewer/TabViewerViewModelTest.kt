@@ -10,6 +10,8 @@ import com.tolstoy.mitablaturas.feature.tabviewer.bridge.PlayerCommand
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -109,6 +111,25 @@ class TabViewerViewModelTest {
         vm.onSpeedChanging(0.75f)
         vm.onSpeedChangeFinished()
         assertEquals(PlayerCommand.SetSpeed(0.75f), vm.commands.first())
+    }
+
+    @Test
+    fun `un archivo que no es tablatura muestra error de formato`() = runTest(dispatcher) {
+        val vm = viewModel(FakeRepository(Result.failure(TabFileException.UnsupportedFormat("foto.jpg"))))
+        advanceUntilIdle()
+        assertEquals(TabViewerError.Unsupported, vm.uiState.value.error)
+    }
+
+    @Test
+    fun `una interrupcion de audio pausa solo si esta sonando`() = runTest(dispatcher) {
+        val vm = viewModel(FakeRepository(Result.success(gp5)))
+        advanceUntilIdle()
+        vm.onAudioInterrupted()
+        vm.onStop()
+        vm.onEngineEvent(AlphaTabEvent.PlayerStateChanged(isPlaying = true))
+        vm.onAudioInterrupted()
+        // La interrupción sin sonido no envía nada: solo llegan Detener y la pausa posterior.
+        assertEquals(listOf(PlayerCommand.Stop, PlayerCommand.Pause), vm.commands.take(2).toList())
     }
 
     @Test

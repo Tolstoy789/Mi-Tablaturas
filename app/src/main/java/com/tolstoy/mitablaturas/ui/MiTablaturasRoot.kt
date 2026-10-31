@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -22,9 +23,23 @@ private const val ROUTE_VIEWER = "viewer?${TabViewerViewModel.ARG_URI}={${TabVie
 
 private fun viewerRoute(uri: String) = "viewer?${TabViewerViewModel.ARG_URI}=${Uri.encode(uri)}"
 
+/**
+ * @param pendingDocument URI que otra app pidió abrir; se muestra en el visor y se avisa con
+ * [onPendingDocumentOpened] para no volver a abrirla.
+ */
 @Composable
-fun MiTablaturasRoot(modifier: Modifier = Modifier) {
+fun MiTablaturasRoot(
+    pendingDocument: String?,
+    onPendingDocumentOpened: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val navController = rememberNavController()
+    LaunchedEffect(pendingDocument) {
+        val uri = pendingDocument ?: return@LaunchedEffect
+        // Sustituye el visor abierto, si lo hay, y deja el inicio debajo para volver atrás.
+        navController.navigate(viewerRoute(uri)) { popUpTo(ROUTE_PICKER) }
+        onPendingDocumentOpened()
+    }
     // safeDrawing incluye el recorte de cámara, que en horizontal queda a un lado de la pantalla.
     Scaffold(
         modifier = modifier.fillMaxSize(),

@@ -1,2 +1,4 @@
 @coderline/alphatab 1.8.4 (npm), files copied from package/dist:
-alphaTab.min.js, font/Bravura.woff2, font/Bravura.woff, font/Bravura-OFL.txt, soundfont/sonivox.sf2
+alphaTab.min.js, font/Bravura.woff2, font/Bravura-OFL.txt, soundfont/sonivox.sf3
+Only woff2 is bundled: the Android WebView (Chromium) supports it on every API level the app targets.
+sonivox.sf3 is the Vorbis-compressed SoundFont; AlphaTab decodes it in its worker.

@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tolstoy.mitablaturas.core.data.file.TabFileRepository
+import com.tolstoy.mitablaturas.core.model.TabFileException
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.AlphaTabEvent
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.PlayerCommand
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,8 +39,13 @@ class TabViewerViewModel @Inject constructor(
 
     private fun loadScore() {
         viewModelScope.launch {
-            val document = repository.resolve(uri).getOrElse {
-                _uiState.update { s -> s.copy(error = TabViewerError.FileUnreadable, isRendering = false) }
+            val document = repository.resolve(uri).getOrElse { error ->
+                val viewerError = if (error is TabFileException.UnsupportedFormat) {
+                    TabViewerError.Unsupported
+                } else {
+                    TabViewerError.FileUnreadable
+                }
+                _uiState.update { s -> s.copy(error = viewerError, isRendering = false) }
                 return@launch
             }
             _uiState.update { it.copy(fileName = document.displayName) }
@@ -85,7 +91,12 @@ class TabViewerViewModel @Inject constructor(
     fun onStop() = send(PlayerCommand.Stop)
 
     /** La app pasa a segundo plano: se pausa para no seguir sonando. */
-    fun onBackgrounded() {
+    fun onBackgrounded() = pauseIfPlaying()
+
+    /** Entra una llamada, suena otra app o se desconectan los auriculares. */
+    fun onAudioInterrupted() = pauseIfPlaying()
+
+    private fun pauseIfPlaying() {
         if (_uiState.value.isPlaying) send(PlayerCommand.Pause)
     }
 

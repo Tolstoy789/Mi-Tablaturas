@@ -62,7 +62,7 @@
     },
     player: {
       playerMode: "enabledSynthesizer",
-      soundFont: base + "soundfont/sonivox.sf2",
+      soundFont: base + "soundfont/sonivox.sf3",
       scrollElement: "#viewport",
       enableCursor: true,
       enableAnimatedBeatCursor: true

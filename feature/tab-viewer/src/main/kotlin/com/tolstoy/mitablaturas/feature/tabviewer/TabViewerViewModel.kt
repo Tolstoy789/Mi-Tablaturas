@@ -138,7 +138,10 @@ class TabViewerViewModel @Inject constructor(
             }
         }
         when (event) {
-            is AlphaTabEvent.ScoreLoaded -> restoreTrack(event.trackNames.size)
+            is AlphaTabEvent.ScoreLoaded -> {
+                restoreTrack(event.trackNames.size)
+                saveScoreInfo(event.title, event.artist)
+            }
             AlphaTabEvent.PlayerReady -> restorePlayback()
             is AlphaTabEvent.PlayerStateChanged -> if (!event.isPlaying) savePractice()
             AlphaTabEvent.LoopCompleted -> stepSpeedTrainer()
@@ -168,6 +171,12 @@ class TabViewerViewModel @Inject constructor(
     }
 
     /** Guarda pista, velocidad y posición; usa el ámbito de la app para terminar aunque se cierre el visor. */
+    /** Título y artista que trae el archivo, para mostrar y buscar la canción en la biblioteca. */
+    private fun saveScoreInfo(title: String, artist: String) {
+        val target = libraryUri ?: return
+        appScope.launch { library.saveScoreInfo(target, title, artist) }
+    }
+
     private fun savePractice() {
         val target = libraryUri ?: return
         val state = _uiState.value

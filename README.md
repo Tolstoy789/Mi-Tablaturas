@@ -2,12 +2,12 @@
 
 App nativa de Android para abrir, renderizar y reproducir tablaturas de guitarra.
 
-- **Interactivas (Guitar Pro):** `.gp3`, `.gp4`, `.gp5`, `.gpx`, `.gp`, renderizadas con [AlphaTab](https://alphatab.net) en un `WebView` local, con audio vía Web Audio API y un SoundFont `.sf3` (comprimido con Vorbis).
-- **Estáticas:** `.pdf`, con `android.graphics.pdf.PdfRenderer`: páginas a todo el ancho, dibujadas al aparecer en pantalla, y paso de página con pedal.
+- **Interactivas (Guitar Pro y MusicXML):** `.gp3`, `.gp4`, `.gp5`, `.gpx`, `.gp`, `.musicxml`, `.mxl` y `.xml`, renderizadas con [AlphaTab](https://alphatab.net) en un `WebView` local, con audio vía Web Audio API y un SoundFont `.sf3` (comprimido con Vorbis).
+- **Estáticas:** `.pdf`, con `android.graphics.pdf.PdfRenderer`: páginas a todo el ancho, dibujadas al aparecer en pantalla, paso de página con pedal, y al volver a abrirlo sigue en la página en que se dejó.
 
-> Estado: abre archivos con el selector de Android o desde otras apps (Ver y Compartir), reproduce tablaturas Guitar Pro con AlphaTab y muestra PDF. La app está en español e inglés, según el idioma del sistema.
+> Estado: abre archivos con el selector de Android o desde otras apps (Ver y Compartir), reproduce tablaturas Guitar Pro y partituras MusicXML con AlphaTab y muestra PDF. La app está en español e inglés, según el idioma del sistema.
 
-La pantalla de inicio guarda una **biblioteca** con las tablaturas abiertas (Room): filtros Todas, Guitar Pro, PDF y Favoritas, y por cada canción la pista, la velocidad y la posición en que se dejó. Los archivos compartidos con permiso temporal (WhatsApp, correo) se copian en el almacenamiento privado de la app para que sigan abriéndose.
+La pantalla de inicio guarda una **biblioteca** con las tablaturas abiertas (Room): filtros Todas, Guitar Pro, PDF y Favoritas, y por cada canción la pista, la velocidad y la posición en que se dejó. Con cuatro canciones o más aparecen la **búsqueda** (por título, artista o nombre de archivo, sin importar tildes ni mayúsculas) y el **orden** (recientes, nombre o más abiertas; se recuerda). El título y el artista se leen de la partitura la primera vez que se abre en el visor. Los archivos compartidos con permiso temporal (WhatsApp, correo) se copian en el almacenamiento privado de la app para que sigan abriéndose.
 
 Herramientas de práctica en el visor:
 

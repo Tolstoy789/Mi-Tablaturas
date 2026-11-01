@@ -6,6 +6,7 @@ import com.tolstoy.mitablaturas.core.data.preferences.UserPreferencesRepository
 import com.tolstoy.mitablaturas.core.model.AppDesign
 import com.tolstoy.mitablaturas.core.model.LibraryEntry
 import com.tolstoy.mitablaturas.core.model.LibraryFilter
+import com.tolstoy.mitablaturas.core.model.LibrarySort
 import com.tolstoy.mitablaturas.core.model.PracticeSettings
 import com.tolstoy.mitablaturas.core.model.TabDocument
 import com.tolstoy.mitablaturas.core.model.TabFileException
@@ -52,6 +53,10 @@ class FilePickerViewModelTest {
         override suspend fun setTabOnly(enabled: Boolean) {
             tabOnly.value = enabled
         }
+        override val librarySort = MutableStateFlow(LibrarySort.DEFAULT)
+        override suspend fun setLibrarySort(sort: LibrarySort) {
+            librarySort.value = sort
+        }
     }
 
     private class FakeLibrary(initial: List<LibraryEntry> = emptyList()) : LibraryRepository {
@@ -65,6 +70,8 @@ class FilePickerViewModelTest {
         }
         override suspend fun practiceSettings(uri: String): PracticeSettings? = null
         override suspend fun savePracticeSettings(uri: String, settings: PracticeSettings) = Unit
+        override suspend fun saveScoreInfo(uri: String, title: String, artist: String) = Unit
+        override suspend fun savePdfPage(uri: String, page: Int) = Unit
     }
 
     private val preferences = FakePreferences()
@@ -151,6 +158,40 @@ class FilePickerViewModelTest {
         advanceUntilIdle()
         assertTrue(vm.libraryState.value.entries.isEmpty())
         assertFalse(vm.libraryState.value.hasEntries)
+    }
+
+    @Test
+    fun `busca y ordena la biblioteca, y recuerda el orden`() = runTest(dispatcher) {
+        fun song(uri: String, name: String, openedAt: Long, opens: Int, artist: String = "") = LibraryEntry(
+            TabDocument(uri, name, TabFormat.fromFileName(name)!!, 10),
+            lastOpenedAt = openedAt,
+            artist = artist,
+            openCount = opens,
+        )
+        val zamba = song("a", "Zamba de mi esperanza.gp5", openedAt = 3, opens = 1)
+        val blues = song("b", "Blues en La.gp", openedAt = 1, opens = 9, artist = "Elías")
+        val coral = song("c", "Coral.musicxml", openedAt = 2, opens = 4)
+        val vm = viewModel(FakeRepository(Result.success(document)), FakeLibrary(listOf(zamba, blues, coral)))
+        backgroundScope.launch { vm.libraryState.collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf(zamba, coral, blues), vm.libraryState.value.entries)
+        // Con menos de 4 canciones no hacen falta buscar ni ordenar.
+        assertFalse(vm.libraryState.value.showTools)
+
+        vm.onSortSelected(LibrarySort.MOST_OPENED)
+        advanceUntilIdle()
+        assertEquals(listOf(blues, coral, zamba), vm.libraryState.value.entries)
+        assertEquals(LibrarySort.MOST_OPENED, preferences.librarySort.value)
+
+        vm.onQueryChanged("ELIAS")
+        advanceUntilIdle()
+        assertEquals(listOf(blues), vm.libraryState.value.entries)
+        assertTrue(vm.libraryState.value.showTools)
+
+        vm.onQueryChanged("nada")
+        advanceUntilIdle()
+        assertTrue(vm.libraryState.value.entries.isEmpty())
+        assertEquals(3, vm.libraryState.value.totalCount)
     }
 
     @Test

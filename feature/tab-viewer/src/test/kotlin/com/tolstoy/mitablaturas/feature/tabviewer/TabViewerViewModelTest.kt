@@ -7,6 +7,7 @@ import com.tolstoy.mitablaturas.core.data.preferences.UserPreferencesRepository
 import com.tolstoy.mitablaturas.core.model.AppDesign
 import com.tolstoy.mitablaturas.core.designsystem.PedalAction
 import com.tolstoy.mitablaturas.core.model.LibraryEntry
+import com.tolstoy.mitablaturas.core.model.LibrarySort
 import com.tolstoy.mitablaturas.core.model.PracticeSettings
 import com.tolstoy.mitablaturas.core.model.TabDocument
 import com.tolstoy.mitablaturas.core.model.TabFileException
@@ -66,6 +67,11 @@ class TabViewerViewModelTest {
         override suspend fun savePracticeSettings(uri: String, settings: PracticeSettings) {
             this.settings[uri] = settings
         }
+        val scoreInfo = mutableMapOf<String, Pair<String, String>>()
+        override suspend fun saveScoreInfo(uri: String, title: String, artist: String) {
+            scoreInfo[uri] = title to artist
+        }
+        override suspend fun savePdfPage(uri: String, page: Int) = Unit
     }
 
     private class FakePreferences(scale: Float = 0.9f, tabOnly: Boolean = false) : UserPreferencesRepository {
@@ -80,6 +86,10 @@ class TabViewerViewModelTest {
         override val tabOnly = MutableStateFlow(tabOnly)
         override suspend fun setTabOnly(enabled: Boolean) {
             tabOnly.value = enabled
+        }
+        override val librarySort = MutableStateFlow(LibrarySort.DEFAULT)
+        override suspend fun setLibrarySort(sort: LibrarySort) {
+            librarySort.value = sort
         }
     }
 
@@ -399,6 +409,16 @@ class TabViewerViewModelTest {
         assertEquals(PlayerCommand.SetTabOnly(true), vm.commands.first())
         advanceUntilIdle()
         assertTrue(preferences.tabOnly.value)
+    }
+
+    @Test
+    fun `guarda el titulo y el artista de la partitura en la biblioteca`() = runTest(dispatcher) {
+        val library = FakeLibrary()
+        val vm = viewModel(FakeRepository(Result.success(gp5)), library = library)
+        advanceUntilIdle()
+        vm.onEngineEvent(AlphaTabEvent.ScoreLoaded("Blues en La", "Elías", listOf("Guitarra")))
+        advanceUntilIdle()
+        assertEquals("Blues en La" to "Elías", library.scoreInfo["content://1"])
     }
 
     @Test

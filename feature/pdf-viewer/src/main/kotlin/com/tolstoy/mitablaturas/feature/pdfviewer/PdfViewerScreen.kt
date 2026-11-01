@@ -30,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,6 +60,15 @@ fun PdfViewerRoute(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     KeepScreenOnEffect()
+    // Vuelve a la página en la que se dejó y, desde entonces, recuerda la página visible.
+    LaunchedEffect(uiState.pageToRestore) {
+        val page = uiState.pageToRestore ?: return@LaunchedEffect
+        listState.scrollToItem(page)
+        viewModel.onPageRestored()
+    }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex }.collect { viewModel.onPageChanged(it) }
+    }
     PdfViewerScreen(
         uiState = uiState,
         listState = listState,

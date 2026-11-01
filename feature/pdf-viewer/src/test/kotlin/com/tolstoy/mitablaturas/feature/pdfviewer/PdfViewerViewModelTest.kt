@@ -13,6 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -40,12 +42,19 @@ class PdfViewerViewModelTest {
 
     private class FakeLibrary : LibraryRepository {
         val opened = mutableListOf<TabDocument>()
+        val pages = mutableMapOf<String, Int>()
+        val savedPages = mutableListOf<Int>()
         override val entries = MutableStateFlow<List<LibraryEntry>>(emptyList())
         override suspend fun recordOpened(document: TabDocument) { opened += document }
         override suspend fun setFavorite(uri: String, favorite: Boolean) = Unit
         override suspend fun remove(uri: String) = Unit
-        override suspend fun practiceSettings(uri: String): PracticeSettings? = null
+        override suspend fun practiceSettings(uri: String): PracticeSettings? = pages[uri]?.let { PracticeSettings(page = it) }
         override suspend fun savePracticeSettings(uri: String, settings: PracticeSettings) = Unit
+        override suspend fun saveScoreInfo(uri: String, title: String, artist: String) = Unit
+        override suspend fun savePdfPage(uri: String, page: Int) {
+            pages[uri] = page
+            savedPages += page
+        }
     }
 
     private class FakePages(override val pageSizes: List<PageSize>) : PdfPages {
@@ -57,14 +66,17 @@ class PdfViewerViewModelTest {
     private val pdf = TabDocument("content://1", "Cancionero.pdf", TabFormat.PDF, 3)
     private val library = FakeLibrary()
 
-    private fun viewModel(document: Result<TabDocument>, openPages: () -> PdfPages) = PdfViewerViewModel(
+    private fun TestScope.viewModel(document: Result<TabDocument>, openPages: () -> PdfPages) = PdfViewerViewModel(
         savedStateHandle = SavedStateHandle(mapOf(PdfViewerViewModel.ARG_URI to "content://1")),
         repository = FakeRepository(document),
         library = library,
         opener = object : PdfDocumentOpener {
             override suspend fun open(bytes: ByteArray): PdfPages = openPages()
         },
+        appScope = this,
     )
+
+    private val threePages = List(3) { PageSize(595, 842) }
 
     @Test
     fun `abre el pdf, muestra sus paginas y lo guarda en la biblioteca`() = runTest(dispatcher) {
@@ -77,6 +89,46 @@ class PdfViewerViewModelTest {
         assertNull(state.error)
         assertEquals("Cancionero", state.title)
         assertEquals(listOf(pdf), library.opened)
+    }
+
+    @Test
+    fun `vuelve a la pagina en la que se dejo y despues guarda la visible`() = runTest(dispatcher) {
+        library.pages["content://1"] = 1
+        val vm = viewModel(Result.success(pdf)) { FakePages(threePages) }
+        advanceUntilIdle()
+        assertEquals(1, vm.uiState.value.pageToRestore)
+
+        // Hasta volver a la página guardada, la primera página visible no la pisa.
+        vm.onPageChanged(0)
+        advanceUntilIdle()
+        assertEquals(emptyList<Int>(), library.savedPages)
+
+        vm.onPageRestored()
+        assertNull(vm.uiState.value.pageToRestore)
+        vm.onPageChanged(2)
+        advanceUntilIdle()
+        assertEquals(listOf(2), library.savedPages)
+    }
+
+    @Test
+    fun `al pasar paginas rapido solo guarda la ultima`() = runTest(dispatcher) {
+        val vm = viewModel(Result.success(pdf)) { FakePages(threePages) }
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.pageToRestore)
+
+        vm.onPageChanged(1)
+        advanceTimeBy(PdfViewerViewModel.PAGE_SAVE_DELAY_MS / 2)
+        vm.onPageChanged(2)
+        advanceUntilIdle()
+        assertEquals(listOf(2), library.savedPages)
+    }
+
+    @Test
+    fun `una pagina guardada que ya no existe vuelve a la ultima`() = runTest(dispatcher) {
+        library.pages["content://1"] = 9
+        val vm = viewModel(Result.success(pdf)) { FakePages(threePages) }
+        advanceUntilIdle()
+        assertEquals(2, vm.uiState.value.pageToRestore)
     }
 
     @Test

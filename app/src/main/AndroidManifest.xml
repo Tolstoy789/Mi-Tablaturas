@@ -24,8 +24,8 @@
             </intent-filter>
 
             <!--
-                Abrir y compartir tablaturas y PDF desde otras apps (gestor de archivos, WhatsApp, Drive...).
-                Android no conoce las extensiones de Guitar Pro, así que casi siempre llegan como
+                Abrir y compartir tablaturas, MusicXML y PDF desde otras apps (gestor de archivos, WhatsApp,
+                Drive...). Android no conoce las extensiones de Guitar Pro, así que casi siempre llegan como
                 application/octet-stream; la app comprueba el formato real antes de abrirlas.
             -->
             <intent-filter>
@@ -37,6 +37,8 @@
                 <data android:mimeType="application/x-gtp" />
                 <data android:mimeType="application/gpx+xml" />
                 <data android:mimeType="audio/x-guitar-pro" />
+                <data android:mimeType="application/vnd.recordare.musicxml+xml" />
+                <data android:mimeType="application/vnd.recordare.musicxml" />
                 <data android:mimeType="application/pdf" />
             </intent-filter>
             <intent-filter>
@@ -47,6 +49,8 @@
                 <data android:mimeType="application/x-gtp" />
                 <data android:mimeType="application/gpx+xml" />
                 <data android:mimeType="audio/x-guitar-pro" />
+                <data android:mimeType="application/vnd.recordare.musicxml+xml" />
+                <data android:mimeType="application/vnd.recordare.musicxml" />
                 <data android:mimeType="application/pdf" />
             </intent-filter>
         </activity>

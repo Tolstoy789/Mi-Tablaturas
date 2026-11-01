@@ -14,7 +14,8 @@ class LibraryFilterTest {
     private val blues = entry("blues.gp5", TabFormat.GUITAR_PRO_5, favorite = true)
     private val rock = entry("rock.gp", TabFormat.GUITAR_PRO_7)
     private val cancionero = entry("cancionero.pdf", TabFormat.PDF, favorite = true)
-    private val all = listOf(blues, rock, cancionero)
+    private val coral = entry("coral.musicxml", TabFormat.MUSIC_XML)
+    private val all = listOf(blues, rock, cancionero, coral)
 
     @Test
     fun `todas devuelve la lista completa en el mismo orden`() {
@@ -22,7 +23,7 @@ class LibraryFilterTest {
     }
 
     @Test
-    fun `guitar pro deja fuera los pdf`() {
+    fun `guitar pro deja fuera los pdf y los MusicXML`() {
         assertEquals(listOf(blues, rock), all.filteredBy(LibraryFilter.GUITAR_PRO))
     }
 

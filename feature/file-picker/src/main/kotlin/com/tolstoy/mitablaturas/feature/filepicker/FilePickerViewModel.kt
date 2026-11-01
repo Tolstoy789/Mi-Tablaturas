@@ -8,7 +8,10 @@ import com.tolstoy.mitablaturas.core.data.preferences.UserPreferencesRepository
 import com.tolstoy.mitablaturas.core.model.AppDesign
 import com.tolstoy.mitablaturas.core.model.LibraryEntry
 import com.tolstoy.mitablaturas.core.model.LibraryFilter
+import com.tolstoy.mitablaturas.core.model.LibrarySort
 import com.tolstoy.mitablaturas.core.model.filteredBy
+import com.tolstoy.mitablaturas.core.model.matching
+import com.tolstoy.mitablaturas.core.model.ordered
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,14 +66,31 @@ class FilePickerViewModel @Inject constructor(
     }
 
     private val filter = MutableStateFlow(LibraryFilter.ALL)
+    private val query = MutableStateFlow("")
 
-    /** Tablaturas recientes con el filtro aplicado. */
-    val libraryState: StateFlow<LibraryUiState> = combine(library.entries, filter) { entries, selected ->
-        LibraryUiState(entries = entries.filteredBy(selected), filter = selected, hasEntries = entries.isNotEmpty())
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
+    /** Tablaturas de la biblioteca con el filtro, la búsqueda y el orden (guardado) aplicados. */
+    val libraryState: StateFlow<LibraryUiState> =
+        combine(library.entries, filter, query, preferences.librarySort) { entries, selected, text, sort ->
+            LibraryUiState(
+                entries = entries.filteredBy(selected).matching(text).ordered(sort),
+                filter = selected,
+                sort = sort,
+                query = text,
+                totalCount = entries.size,
+            )
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
 
     fun onFilterSelected(selected: LibraryFilter) {
         filter.value = selected
+    }
+
+    /** Texto de la búsqueda; la pantalla guarda el del campo y lo envía en cada cambio. */
+    fun onQueryChanged(text: String) {
+        query.value = text
+    }
+
+    fun onSortSelected(sort: LibrarySort) {
+        viewModelScope.launch { preferences.setLibrarySort(sort) }
     }
 
     fun onFavoriteToggled(entry: LibraryEntry) {

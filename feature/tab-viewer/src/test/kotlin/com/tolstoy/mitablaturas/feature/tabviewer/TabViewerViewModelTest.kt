@@ -13,6 +13,7 @@ import com.tolstoy.mitablaturas.core.model.TabFileException
 import com.tolstoy.mitablaturas.core.model.TabFormat
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.AlphaTabEvent
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.PlayerCommand
+import com.tolstoy.mitablaturas.feature.tabviewer.bridge.ScoreSection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,7 +68,7 @@ class TabViewerViewModelTest {
         }
     }
 
-    private class FakePreferences(scale: Float = 0.9f) : UserPreferencesRepository {
+    private class FakePreferences(scale: Float = 0.9f, tabOnly: Boolean = false) : UserPreferencesRepository {
         override val design = MutableStateFlow(AppDesign.DEFAULT)
         override suspend fun setDesign(design: AppDesign) {
             this.design.value = design
@@ -75,6 +76,10 @@ class TabViewerViewModelTest {
         override val scoreScale = MutableStateFlow(scale)
         override suspend fun setScoreScale(scale: Float) {
             scoreScale.value = scale
+        }
+        override val tabOnly = MutableStateFlow(tabOnly)
+        override suspend fun setTabOnly(enabled: Boolean) {
+            tabOnly.value = enabled
         }
     }
 
@@ -349,7 +354,7 @@ class TabViewerViewModelTest {
         val vm = viewModel(FakeRepository(Result.success(gp5)), preferences = preferences)
         advanceUntilIdle()
         vm.onEngineEvent(AlphaTabEvent.RenderFinished)
-        assertTrue(vm.uiState.value.canZoom)
+        assertTrue(vm.uiState.value.canRedraw)
 
         vm.onZoom(1)
         vm.onZoom(1)
@@ -359,7 +364,7 @@ class TabViewerViewModelTest {
         assertFalse(vm.uiState.value.isRendering)
         advanceTimeBy(TabViewerViewModel.ZOOM_SETTLE_MS + 1)
         assertTrue(vm.uiState.value.isRendering)
-        assertFalse(vm.uiState.value.canZoom)
+        assertFalse(vm.uiState.value.canRedraw)
         advanceUntilIdle()
         assertEquals(1.2f, preferences.scoreScale.value)
 
@@ -379,6 +384,92 @@ class TabViewerViewModelTest {
         assertFalse(vm.uiState.value.isRendering)
         vm.onStop()
         assertEquals(PlayerCommand.Stop, vm.commands.first())
+    }
+
+    @Test
+    fun `solo tablatura vuelve a dibujar y se guarda`() = runTest(dispatcher) {
+        val preferences = FakePreferences()
+        val vm = viewModel(FakeRepository(Result.success(gp5)), preferences = preferences)
+        advanceUntilIdle()
+        vm.onEngineEvent(AlphaTabEvent.RenderFinished)
+        vm.onTabOnlyToggled()
+        assertTrue(vm.uiState.value.isTabOnly)
+        assertTrue(vm.uiState.value.isRendering)
+        assertFalse(vm.uiState.value.canRedraw)
+        assertEquals(PlayerCommand.SetTabOnly(true), vm.commands.first())
+        advanceUntilIdle()
+        assertTrue(preferences.tabOnly.value)
+    }
+
+    @Test
+    fun `abre con la vista guardada`() = runTest(dispatcher) {
+        val vm = viewModel(FakeRepository(Result.success(gp5)), preferences = FakePreferences(tabOnly = true))
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.isTabOnly)
+    }
+
+    @Test
+    fun `la mezcla de pistas envia solo lo que cambia`() = runTest(dispatcher) {
+        val vm = viewModel(FakeRepository(Result.success(gp5)))
+        advanceUntilIdle()
+        vm.onEngineEvent(AlphaTabEvent.ScoreLoaded("Blues en La", "Elias", listOf("Guitarra", "Bajo")))
+        assertEquals(listOf(TrackMix(), TrackMix()), vm.uiState.value.trackMix)
+
+        vm.onTrackMuteToggled(0)
+        vm.onTrackSoloToggled(1)
+        vm.onTrackVolumeChanged(1, 0.52f)
+        // Redondeado a pasos del 5 %, 0,49 es el mismo 50 %: no se envía otra vez.
+        vm.onTrackVolumeChanged(1, 0.49f)
+        vm.onTrackMuteToggled(5)
+
+        assertEquals(TrackMix(isMuted = true), vm.uiState.value.trackMix[0])
+        assertEquals(TrackMix(isSolo = true, volume = 0.5f), vm.uiState.value.trackMix[1])
+        vm.onStop()
+        assertEquals(
+            listOf(
+                PlayerCommand.SetTrackMute(0, true),
+                PlayerCommand.SetTrackSolo(1, true),
+                PlayerCommand.SetTrackVolume(1, 0.5f),
+                PlayerCommand.Stop,
+            ),
+            vm.commands.take(4).toList(),
+        )
+    }
+
+    @Test
+    fun `volumen del metronomo en pasos y transposicion con limite`() = runTest(dispatcher) {
+        val vm = viewModel(FakeRepository(Result.success(gp5)))
+        advanceUntilIdle()
+        vm.onMetronomeVolumeChanged(0.33f)
+        repeat(14) { vm.onTranspositionChanged(-1) }
+
+        assertEquals(0.35f, vm.uiState.value.metronomeVolume)
+        assertEquals(TabViewerViewModel.MIN_TRANSPOSITION, vm.uiState.value.transposition)
+        val commands = vm.commands.take(13).toList()
+        assertEquals(PlayerCommand.SetMetronomeVolume(0.35f), commands.first())
+        assertEquals(PlayerCommand.SetTransposition(-12), commands.last())
+    }
+
+    @Test
+    fun `una seccion se salta con un toque y se repite con una pulsacion larga`() = runTest(dispatcher) {
+        val vm = viewModel(FakeRepository(Result.success(gp5)))
+        advanceUntilIdle()
+        val sections = listOf(ScoreSection("Intro", 1, 8), ScoreSection("Estribillo", 9, 16))
+        vm.onEngineEvent(AlphaTabEvent.SectionsLoaded(sections))
+        assertEquals(sections, vm.uiState.value.sections)
+
+        vm.onSectionTapped(1)
+        assertTrue(vm.uiState.value.showSectionHint)
+        vm.onSectionLongPressed(0)
+        assertFalse(vm.uiState.value.showSectionHint)
+        vm.onEngineEvent(AlphaTabEvent.LoopRangeChanged(1, 8))
+        // Con el bucle activo, un toque pasa a repetir esa sección en lugar de salir del bucle.
+        vm.onSectionTapped(1)
+
+        assertEquals(
+            listOf(PlayerCommand.JumpToBar(9), PlayerCommand.LoopBars(1, 8), PlayerCommand.LoopBars(9, 16)),
+            vm.commands.take(3).toList(),
+        )
     }
 
     @Test

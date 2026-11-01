@@ -11,4 +11,8 @@ interface UserPreferencesRepository {
     /** Tamaño de la partitura en el visor; ver [com.tolstoy.mitablaturas.core.model.ScoreScale]. */
     val scoreScale: Flow<Float>
     suspend fun setScoreScale(scale: Float)
+
+    /** El visor muestra solo la tablatura, sin pentagrama. */
+    val tabOnly: Flow<Boolean>
+    suspend fun setTabOnly(enabled: Boolean)
 }

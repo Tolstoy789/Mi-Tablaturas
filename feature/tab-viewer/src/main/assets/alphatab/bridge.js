@@ -42,6 +42,8 @@
   // Tamaño de la partitura (ScoreScale en core/model); después cambia con window.tab.setScale.
   var initialScale = parseFloat(params.get("scale"));
   if (!(initialScale >= 0.3 && initialScale <= 3)) initialScale = 0.9;
+  // Solo tablatura (preferencia de la app); después cambia con window.tab.setTabOnly.
+  var tabOnly = params.get("stave") === "tab";
   var rootStyle = document.documentElement.style;
   rootStyle.setProperty("--sheet", theme.sheet);
   rootStyle.setProperty("--accent", theme.accent);
@@ -53,6 +55,17 @@
   }
 
   var viewport = document.getElementById("viewport");
+  /**
+   * Pentagramas para las pistas que se van a dibujar. «Solo tablatura» necesita una pista con
+   * cuerdas: con la batería, o con una pista sin afinación, AlphaTab no dibujaría nada ni avisaría
+   * de que terminó. Esas pistas se dibujan con sus pentagramas.
+   */
+  function staveProfileFor(tracks) {
+    var hasTab = (tracks || []).some(function (track) {
+      return track.staves.some(function (staff) { return !staff.isPercussion && staff.tuning.length > 0; });
+    });
+    return tabOnly && hasTab ? alphaTab.StaveProfile.Tab : alphaTab.StaveProfile.Default;
+  }
   var api = new alphaTab.AlphaTabApi(document.getElementById("score"), {
     core: {
       fontDirectory: base + "font/",
@@ -65,6 +78,7 @@
     display: {
       layoutMode: "page",
       scale: initialScale,
+      staveProfile: tabOnly ? alphaTab.StaveProfile.Tab : alphaTab.StaveProfile.Default,
       resources: {
         staffLineColor: theme.staff,
         barSeparatorColor: theme.bar,
@@ -88,6 +102,9 @@
   var lastSentSecond = -1;
   var loopStart = null; // MasterBarTickLookup del punto A, mientras falta marcar B
   var activeRange = null; // { startTick, endTick } del bucle A-B activo
+  // Mezcla elegida en la app. El sintetizador la olvida al cargar otro MIDI, así que se vuelve a
+  // aplicar en cada playerReady.
+  var mix = { tracks: {}, metronome: 1, metronomeOn: false, transposition: 0 };
 
   api.scoreLoaded.on(function (score) {
     // Nombre de reserva para pistas sin nombre. Igual que los textos de la app: inglés si el
@@ -95,6 +112,11 @@
     var trackLabel = /^en\b/i.test(navigator.language || "") ? "Track " : "Pista ";
     var names = score.tracks.map(function (t) { return t.name || (trackLabel + (t.index + 1)); });
     native.onScoreLoaded(score.title || "", score.artist || "", names.join(SEP));
+    // Otra partitura empieza con todas las pistas sonando, igual que la mezcla en Kotlin.
+    mix.tracks = {};
+    // Antes del primer dibujo, por si la primera pista no tiene tablatura.
+    syncStaveProfile(api.tracks);
+    reportSections(score);
   });
   api.renderFinished.on(function () { native.onRenderFinished(); });
   api.postRenderFinished.on(function () {
@@ -105,7 +127,12 @@
     console.info("Mi Tablaturas: visor " + viewport.clientWidth + "x" + viewport.clientHeight +
       ", svg " + document.querySelectorAll("#score svg").length);
   });
-  api.playerReady.on(function () { native.onPlayerReady(); });
+  api.playerReady.on(function () {
+    // playerReady llega cada vez que se carga un MIDI nuevo: es el momento de recuperar la mezcla.
+    // (api.midiLoaded no sirve: con workers, AlphaTab 1.8.4 entra en recursión al suscribirse.)
+    applyMix();
+    native.onPlayerReady();
+  });
   api.playerStateChanged.on(function (e) { native.onPlayerStateChanged(e.state === 1); });
   api.playerFinished.on(function () {
     // Con «Repetir» activo AlphaTab avisa al final de cada vuelta y sigue sonando.
@@ -190,6 +217,71 @@
     api.highlightPlaybackRange(startBeats[0], endBeats[endBeats.length - 1]);
   }
 
+  /**
+   * Secciones marcadas en el archivo (Intro, Estribillo…): nombres separados por SEP y compás
+   * de inicio de cada una (desde 1). Kotlin calcula dónde termina cada una.
+   */
+  function reportSections(score) {
+    var names = [];
+    var starts = [];
+    score.masterBars.forEach(function (bar) {
+      if (!bar.section) return;
+      names.push(bar.section.text || bar.section.marker || "");
+      starts.push(bar.index + 1);
+    });
+    native.onSectionsLoaded(names.join(SEP), starts.join(","), score.masterBars.length);
+  }
+
+  /** Primera vez que suena el compás `index` (desde 0) a partir de `fromTick`, con las repeticiones desplegadas. */
+  function barLookup(index, fromTick) {
+    var bars = api.tickCache ? api.tickCache.masterBars : [];
+    for (var i = 0; i < bars.length; i++) {
+      if (bars[i].masterBar.index === index && bars[i].start >= fromTick) return bars[i];
+    }
+    return null;
+  }
+
+  function trackMix(index) {
+    if (!mix.tracks[index]) mix.tracks[index] = { mute: false, solo: false, volume: 1 };
+    return mix.tracks[index];
+  }
+
+  function applyTrackMix(index) {
+    if (!api.score || !api.score.tracks[index]) return;
+    var m = trackMix(index);
+    api.changeTrackMute([index], m.mute);
+    api.changeTrackSolo([index], m.solo);
+    api.changeTrackVolume([index], m.volume);
+  }
+
+  function applyMix() {
+    if (!api.score) return;
+    Object.keys(mix.tracks).forEach(function (index) { applyTrackMix(Number(index)); });
+    api.changeTrackTranspositionPitch(api.score.tracks, mix.transposition);
+  }
+
+  /** Ajusta los pentagramas a [tracks] sin dibujar. Devuelve `true` si cambiaron. */
+  function syncStaveProfile(tracks) {
+    var profile = staveProfileFor(tracks);
+    if (api.settings.display.staveProfile === profile) return false;
+    api.settings.display.staveProfile = profile;
+    api.updateSettings();
+    return true;
+  }
+
+  /** Cambia un ajuste de dibujo y vuelve a dibujar. Kotlin muestra la rueda de carga hasta renderFinished. */
+  function updateDisplay(key, value) {
+    var display = api.settings.display;
+    if (display[key] === value) {
+      native.onRenderFinished();
+      return;
+    }
+    display[key] = value;
+    api.updateSettings();
+    // Sin partitura todavía, el primer dibujo ya usará el ajuste nuevo.
+    if (api.score) api.render();
+  }
+
   function scrollPage(direction) {
     viewport.scrollBy({ top: direction * viewport.clientHeight * 0.85, behavior: "smooth" });
   }
@@ -203,11 +295,19 @@
       if (!track) return;
       // La marca del A-B apunta a compases de la pista anterior; se vuelve a poner al terminar.
       resetSelection();
+      syncStaveProfile([track]);
       api.renderTracks([track]);
     },
     setSpeed: function (speed) { api.playbackSpeed = speed; },
     setLooping: function (enabled) { api.isLooping = enabled; },
-    setMetronome: function (enabled) { api.metronomeVolume = enabled ? 1 : 0; },
+    setMetronome: function (enabled) {
+      mix.metronomeOn = enabled;
+      api.metronomeVolume = enabled ? mix.metronome : 0;
+    },
+    setMetronomeVolume: function (volume) {
+      mix.metronome = volume;
+      if (mix.metronomeOn) api.metronomeVolume = volume;
+    },
     setCountIn: function (enabled) { api.countInVolume = enabled ? 1 : 0; },
     seek: function (ms) {
       api.timePosition = ms;
@@ -244,20 +344,61 @@
       reportRange();
     },
     scrollPage: scrollPage,
-    /**
-     * Vuelve a dibujar con otro tamaño. Kotlin muestra la rueda de carga hasta renderFinished;
-     * después AlphaTab desplaza la partitura hasta el cursor.
-     */
+    /** Vuelve a dibujar con otro tamaño; después AlphaTab desplaza la partitura hasta el cursor. */
     setScale: function (scale) {
-      var display = api.settings.display;
-      if (!(scale > 0) || display.scale === scale) {
+      if (scale > 0) {
+        updateDisplay("scale", scale);
+      } else {
         native.onRenderFinished();
-        return;
       }
-      display.scale = scale;
-      api.updateSettings();
-      // Sin partitura todavía, el primer dibujo ya usará el tamaño nuevo.
-      if (api.score) api.render();
+    },
+    /** Solo la tablatura, o los pentagramas que traiga el archivo. Kotlin espera renderFinished. */
+    setTabOnly: function (enabled) {
+      tabOnly = enabled;
+      if (!syncStaveProfile(api.tracks)) {
+        // Nada cambia a la vista (p. ej. en la batería).
+        native.onRenderFinished();
+      } else if (api.score) {
+        api.render();
+      }
+      // Sin partitura todavía, el primer dibujo ya usará la vista nueva.
+    },
+    setTrackMute: function (index, muted) {
+      trackMix(index).mute = muted;
+      applyTrackMix(index);
+    },
+    setTrackSolo: function (index, solo) {
+      trackMix(index).solo = solo;
+      applyTrackMix(index);
+    },
+    setTrackVolume: function (index, volume) {
+      trackMix(index).volume = volume;
+      applyTrackMix(index);
+    },
+    /** Sube o baja el sonido en semitonos; la partitura no cambia y la batería no se transpone. */
+    setTransposition: function (semitones) {
+      mix.transposition = semitones;
+      if (api.score) api.changeTrackTranspositionPitch(api.score.tracks, semitones);
+    },
+    /** Mueve el cursor al principio de un compás (desde 1). */
+    jumpToBar: function (bar) {
+      var lookup = barLookup(bar - 1, 0);
+      if (!lookup) return;
+      api.tickPosition = lookup.start;
+      api.scrollToCursor();
+    },
+    /** Repite de un compás a otro (desde 1), con el mismo bucle que «Marcar A» y «Marcar B». */
+    loopBars: function (first, last) {
+      var start = barLookup(first - 1, 0);
+      var end = start && barLookup(last - 1, start.start);
+      if (!start || !end) return;
+      loopStart = null;
+      activeRange = { startTick: start.start, endTick: end.end };
+      applyRange(activeRange);
+      api.isLooping = true;
+      api.tickPosition = start.start;
+      api.scrollToCursor();
+      reportRange();
     }
   };
 

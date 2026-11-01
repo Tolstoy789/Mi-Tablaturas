@@ -34,8 +34,8 @@ import java.util.Locale
 private const val LOG_TAG = "AlphaTab"
 private const val VIEWER_URL = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}/assets/alphatab/viewer.html"
 
-/** URL del visor con los colores de la hoja y el tamaño de la partitura, que `bridge.js` aplica a AlphaTab. */
-internal fun viewerUrl(style: ScoreSheetStyle, scale: Float): String {
+/** URL del visor con los colores de la hoja, el tamaño y la vista de la partitura, que `bridge.js` aplica a AlphaTab. */
+internal fun viewerUrl(style: ScoreSheetStyle, scale: Float, tabOnly: Boolean): String {
     val params = linkedMapOf(
         "bg" to style.background.hex(),
         "accent" to style.accent.hex(),
@@ -47,6 +47,7 @@ internal fun viewerUrl(style: ScoreSheetStyle, scale: Float): String {
         "info" to style.scoreInfo.hex(),
         "barNumber" to style.barNumber.hex(),
         "scale" to String.format(Locale.US, "%.2f", scale),
+        "stave" to if (tabOnly) "tab" else "default",
     )
     return VIEWER_URL + params.entries.joinToString("&", prefix = "?") { (key, value) -> "$key=$value" }
 }
@@ -60,6 +61,7 @@ private fun Color.hex(): String = String.format(Locale.US, "%06X", toArgb() and 
  *
  * @param initialScale tamaño con el que se carga la página; los cambios posteriores llegan
  * como [PlayerCommand.SetScale], sin recargarla.
+ * @param initialTabOnly igual para la vista de solo tablatura ([PlayerCommand.SetTabOnly]).
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -70,11 +72,13 @@ fun TabViewerWebView(
     onEvent: (AlphaTabEvent) -> Unit,
     modifier: Modifier = Modifier,
     initialScale: Float = ScoreScale.DEFAULT,
+    initialTabOnly: Boolean = false,
 ) {
     val currentOnEvent by rememberUpdatedState(onEvent)
     val currentScore by rememberUpdatedState(score)
     // Si el WebView se vuelve a crear, carga la página con el tamaño actual.
     val currentScale by rememberUpdatedState(initialScale)
+    val currentTabOnly by rememberUpdatedState(initialTabOnly)
     val bridge = remember { AlphaTabBridge { event -> currentOnEvent(event) } }
 
     val holder = remember { WebViewHolder() }
@@ -85,7 +89,7 @@ fun TabViewerWebView(
                 currentOnEvent(AlphaTabEvent.Error(message))
             }.also {
                 holder.webView = it
-                it.loadUrl(viewerUrl(sheetStyle, currentScale))
+                it.loadUrl(viewerUrl(sheetStyle, currentScale, currentTabOnly))
             }
         },
         onRelease = { webView ->

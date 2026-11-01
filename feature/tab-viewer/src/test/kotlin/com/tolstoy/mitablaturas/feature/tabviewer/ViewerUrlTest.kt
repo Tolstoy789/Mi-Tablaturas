@@ -3,12 +3,13 @@ package com.tolstoy.mitablaturas.feature.tabviewer
 import androidx.compose.ui.graphics.Color
 import com.tolstoy.mitablaturas.core.designsystem.ScoreSheetStyle
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ViewerUrlTest {
 
     @Test
-    fun `pasa los colores de la hoja y el tamano en la url`() {
+    fun `pasa los colores de la hoja, el tamano y la vista en la url`() {
         val style = ScoreSheetStyle(
             background = Color(0xFF10141C),
             accent = Color(0xFFF5A524),
@@ -23,8 +24,9 @@ class ViewerUrlTest {
         assertEquals(
             "https://appassets.androidplatform.net/assets/alphatab/viewer.html" +
                 "?bg=10141C&accent=F5A524&accentAlpha=0.18&staff=3A4357&bar=5A6478" +
-                "&glyph=E9ECF2&secondary=8D96A8&info=E9ECF2&barNumber=F5A524&scale=1.20",
-            viewerUrl(style, 1.2f),
+                "&glyph=E9ECF2&secondary=8D96A8&info=E9ECF2&barNumber=F5A524&scale=1.20&stave=tab",
+            viewerUrl(style, 1.2f, tabOnly = true),
         )
+        assertTrue(viewerUrl(style, 0.9f, tabOnly = false).endsWith("&scale=0.90&stave=default"))
     }
 }

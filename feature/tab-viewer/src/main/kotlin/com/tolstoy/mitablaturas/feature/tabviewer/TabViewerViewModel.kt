@@ -84,9 +84,12 @@ class TabViewerViewModel @Inject constructor(
             }
             val saved = rememberInLibrary(document, bytes)
             pendingRestore = saved
-            // El tamaño se lee antes de crear el WebView, que lo recibe en la URL.
+            // El tamaño y la vista se leen antes de crear el WebView, que los recibe en la URL.
             val scale = preferences.scoreScale.first()
-            _uiState.update { it.copy(score = ScoreBytes(bytes), speed = saved?.speed ?: it.speed, scoreScale = scale) }
+            val tabOnly = preferences.tabOnly.first()
+            _uiState.update {
+                it.copy(score = ScoreBytes(bytes), speed = saved?.speed ?: it.speed, scoreScale = scale, isTabOnly = tabOnly)
+            }
         }
     }
 
@@ -108,7 +111,10 @@ class TabViewerViewModel @Inject constructor(
                     artist = event.artist,
                     trackNames = event.trackNames,
                     selectedTrack = 0,
+                    trackMix = List(event.trackNames.size) { TrackMix() },
+                    sections = emptyList(),
                 )
+                is AlphaTabEvent.SectionsLoaded -> state.copy(sections = event.sections)
                 AlphaTabEvent.RenderFinished -> state.copy(isRendering = false)
                 AlphaTabEvent.PlayerReady -> state.copy(isPlayerReady = true)
                 is AlphaTabEvent.PlayerStateChanged -> state.copy(isPlaying = event.isPlaying)
@@ -122,6 +128,7 @@ class TabViewerViewModel @Inject constructor(
                     loopEndBar = event.endBar,
                     // Al cerrar el bucle A-B, AlphaTab activa «Repetir».
                     isLooping = state.isLooping || event.endBar > 0,
+                    showSectionHint = state.showSectionHint && event.endBar == 0,
                 )
                 AlphaTabEvent.LoopCompleted -> state
                 is AlphaTabEvent.Error -> state.copy(
@@ -271,6 +278,74 @@ class TabViewerViewModel @Inject constructor(
         }
     }
 
+    /** Solo tablatura o los pentagramas del archivo; se guarda como preferencia general. */
+    fun onTabOnlyToggled() {
+        val enabled = !_uiState.value.isTabOnly
+        _uiState.update { it.copy(isTabOnly = enabled, isRendering = true) }
+        send(PlayerCommand.SetTabOnly(enabled))
+        appScope.launch { preferences.setTabOnly(enabled) }
+    }
+
+    /** Silenciar una pista deja tocarla encima del resto de la banda. */
+    fun onTrackMuteToggled(index: Int) = updateTrackMix(index) { it.copy(isMuted = !it.isMuted) }
+
+    /** Con alguna pista en solo, solo suenan las pistas en solo. */
+    fun onTrackSoloToggled(index: Int) = updateTrackMix(index) { it.copy(isSolo = !it.isSolo) }
+
+    fun onTrackVolumeChanged(index: Int, volume: Float) = updateTrackMix(index) { it.copy(volume = volumeStep(volume)) }
+
+    /** Envía al reproductor solo lo que cambió de la mezcla de la pista. */
+    private fun updateTrackMix(index: Int, change: (TrackMix) -> TrackMix) {
+        val current = _uiState.value.trackMix.getOrNull(index) ?: return
+        val next = change(current)
+        if (next == current) return
+        _uiState.update { state ->
+            if (index !in state.trackMix.indices) return@update state
+            state.copy(trackMix = state.trackMix.toMutableList().also { it[index] = next })
+        }
+        if (next.isMuted != current.isMuted) send(PlayerCommand.SetTrackMute(index, next.isMuted))
+        if (next.isSolo != current.isSolo) send(PlayerCommand.SetTrackSolo(index, next.isSolo))
+        if (next.volume != current.volume) send(PlayerCommand.SetTrackVolume(index, next.volume))
+    }
+
+    fun onMetronomeVolumeChanged(volume: Float) {
+        val next = volumeStep(volume)
+        if (next == _uiState.value.metronomeVolume) return
+        _uiState.update { it.copy(metronomeVolume = next) }
+        send(PlayerCommand.SetMetronomeVolume(next))
+    }
+
+    /** Sube (pasos positivos) o baja el sonido en semitonos, entre [MIN_TRANSPOSITION] y [MAX_TRANSPOSITION]. */
+    fun onTranspositionChanged(steps: Int) {
+        val current = _uiState.value.transposition
+        val next = (current + steps).coerceIn(MIN_TRANSPOSITION, MAX_TRANSPOSITION)
+        if (next == current) return
+        _uiState.update { it.copy(transposition = next) }
+        send(PlayerCommand.SetTransposition(next))
+    }
+
+    /**
+     * Un toque salta al principio de la sección. Con un bucle activo, en cambio, pasa a repetir
+     * esa sección, para no salir del bucle.
+     */
+    fun onSectionTapped(index: Int) {
+        val state = _uiState.value
+        val section = state.sections.getOrNull(index) ?: return
+        if (state.loopRange == LoopRangeState.ACTIVE) {
+            onSectionLongPressed(index)
+            return
+        }
+        _uiState.update { it.copy(showSectionHint = true) }
+        send(PlayerCommand.JumpToBar(section.startBar))
+    }
+
+    /** Una pulsación larga repite la sección con el bucle A-B. */
+    fun onSectionLongPressed(index: Int) {
+        val section = _uiState.value.sections.getOrNull(index) ?: return
+        _uiState.update { it.copy(showSectionHint = false) }
+        send(PlayerCommand.LoopBars(section.startBar, section.endBar))
+    }
+
     fun onMetronomeToggled() {
         val enabled = !_uiState.value.isMetronomeOn
         _uiState.update { it.copy(isMetronomeOn = enabled) }
@@ -294,6 +369,9 @@ class TabViewerViewModel @Inject constructor(
         _commands.trySend(command)
     }
 
+    /** Volumen en pasos del 5 %, entre 0 y 1. */
+    private fun volumeStep(volume: Float): Float = (volume.coerceIn(0f, 1f) * 20).roundToInt() / 20f
+
     companion object {
         const val ARG_URI = "uri"
         const val MIN_SPEED = 0.25f
@@ -301,6 +379,8 @@ class TabViewerViewModel @Inject constructor(
         private const val END_MARGIN_MS = 1_000L
         private const val SPEED_TRAINER_STEP = 0.05f
         internal const val ZOOM_SETTLE_MS = 400L
+        const val MIN_TRANSPOSITION = -12
+        const val MAX_TRANSPOSITION = 12
         val SPEED_TRAINER_TARGETS = listOf(0.8f, 0.9f, 1f, 1.1f, 1.2f)
     }
 }

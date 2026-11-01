@@ -43,7 +43,7 @@
   var initialScale = parseFloat(params.get("scale"));
   if (!(initialScale >= 0.3 && initialScale <= 3)) initialScale = 0.9;
   // Solo tablatura (preferencia de la app); después cambia con window.tab.setTabOnly.
-  var initialTabOnly = params.get("stave") === "tab";
+  var tabOnly = params.get("stave") === "tab";
   var rootStyle = document.documentElement.style;
   rootStyle.setProperty("--sheet", theme.sheet);
   rootStyle.setProperty("--accent", theme.accent);
@@ -55,8 +55,16 @@
   }
 
   var viewport = document.getElementById("viewport");
-  function staveProfile(tabOnly) {
-    return tabOnly ? alphaTab.StaveProfile.Tab : alphaTab.StaveProfile.Default;
+  /**
+   * Pentagramas para las pistas que se van a dibujar. «Solo tablatura» necesita una pista con
+   * cuerdas: con la batería, o con una pista sin afinación, AlphaTab no dibujaría nada ni avisaría
+   * de que terminó. Esas pistas se dibujan con sus pentagramas.
+   */
+  function staveProfileFor(tracks) {
+    var hasTab = (tracks || []).some(function (track) {
+      return track.staves.some(function (staff) { return !staff.isPercussion && staff.tuning.length > 0; });
+    });
+    return tabOnly && hasTab ? alphaTab.StaveProfile.Tab : alphaTab.StaveProfile.Default;
   }
   var api = new alphaTab.AlphaTabApi(document.getElementById("score"), {
     core: {
@@ -70,7 +78,7 @@
     display: {
       layoutMode: "page",
       scale: initialScale,
-      staveProfile: staveProfile(initialTabOnly),
+      staveProfile: tabOnly ? alphaTab.StaveProfile.Tab : alphaTab.StaveProfile.Default,
       resources: {
         staffLineColor: theme.staff,
         barSeparatorColor: theme.bar,
@@ -106,6 +114,8 @@
     native.onScoreLoaded(score.title || "", score.artist || "", names.join(SEP));
     // Otra partitura empieza con todas las pistas sonando, igual que la mezcla en Kotlin.
     mix.tracks = {};
+    // Antes del primer dibujo, por si la primera pista no tiene tablatura.
+    syncStaveProfile(api.tracks);
     reportSections(score);
   });
   api.renderFinished.on(function () { native.onRenderFinished(); });
@@ -250,6 +260,15 @@
     api.changeTrackTranspositionPitch(api.score.tracks, mix.transposition);
   }
 
+  /** Ajusta los pentagramas a [tracks] sin dibujar. Devuelve `true` si cambiaron. */
+  function syncStaveProfile(tracks) {
+    var profile = staveProfileFor(tracks);
+    if (api.settings.display.staveProfile === profile) return false;
+    api.settings.display.staveProfile = profile;
+    api.updateSettings();
+    return true;
+  }
+
   /** Cambia un ajuste de dibujo y vuelve a dibujar. Kotlin muestra la rueda de carga hasta renderFinished. */
   function updateDisplay(key, value) {
     var display = api.settings.display;
@@ -276,6 +295,7 @@
       if (!track) return;
       // La marca del A-B apunta a compases de la pista anterior; se vuelve a poner al terminar.
       resetSelection();
+      syncStaveProfile([track]);
       api.renderTracks([track]);
     },
     setSpeed: function (speed) { api.playbackSpeed = speed; },
@@ -332,8 +352,17 @@
         native.onRenderFinished();
       }
     },
-    /** Solo la tablatura, o los pentagramas que traiga el archivo. */
-    setTabOnly: function (enabled) { updateDisplay("staveProfile", staveProfile(enabled)); },
+    /** Solo la tablatura, o los pentagramas que traiga el archivo. Kotlin espera renderFinished. */
+    setTabOnly: function (enabled) {
+      tabOnly = enabled;
+      if (!syncStaveProfile(api.tracks)) {
+        // Nada cambia a la vista (p. ej. en la batería).
+        native.onRenderFinished();
+      } else if (api.score) {
+        api.render();
+      }
+      // Sin partitura todavía, el primer dibujo ya usará la vista nueva.
+    },
     setTrackMute: function (index, muted) {
       trackMix(index).mute = muted;
       applyTrackMix(index);

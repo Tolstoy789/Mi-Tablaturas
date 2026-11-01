@@ -24,4 +24,13 @@
     <string name="tab_viewer_remove_from_library">Quitar de la biblioteca</string>
     <string name="tab_viewer_error_unsupported">Este archivo no es una tablatura compatible. Abre un Guitar Pro (.gp3, .gp4, .gp5, .gpx o .gp).</string>
     <string name="tab_viewer_error_engine">No se pudo mostrar o reproducir esta tablatura. El archivo puede estar dañado o usar una versión de Guitar Pro no compatible.</string>
+    <string name="tab_viewer_focus_enter">Ver la partitura en pantalla completa</string>
+    <string name="tab_viewer_focus_exit">Salir de la pantalla completa</string>
+    <string name="tab_viewer_zoom_in">Agrandar la partitura</string>
+    <string name="tab_viewer_zoom_out">Reducir la partitura</string>
+    <string name="tab_viewer_zoom_level">%1$d %%</string>
+    <string name="tab_viewer_play_symbol" translatable="false">▶</string>
+    <string name="tab_viewer_pause_symbol" translatable="false">❚❚</string>
+    <string name="tab_viewer_zoom_in_symbol" translatable="false">A+</string>
+    <string name="tab_viewer_zoom_out_symbol" translatable="false">A−</string>
 </resources>

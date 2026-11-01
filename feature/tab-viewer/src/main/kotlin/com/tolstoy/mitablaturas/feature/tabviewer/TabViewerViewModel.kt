@@ -6,19 +6,24 @@ import androidx.lifecycle.viewModelScope
 import com.tolstoy.mitablaturas.core.data.di.ApplicationScope
 import com.tolstoy.mitablaturas.core.data.file.TabFileRepository
 import com.tolstoy.mitablaturas.core.data.library.LibraryRepository
+import com.tolstoy.mitablaturas.core.data.preferences.UserPreferencesRepository
 import com.tolstoy.mitablaturas.core.designsystem.PedalAction
 import com.tolstoy.mitablaturas.core.model.PracticeSettings
+import com.tolstoy.mitablaturas.core.model.ScoreScale
 import com.tolstoy.mitablaturas.core.model.TabDocument
 import com.tolstoy.mitablaturas.core.model.TabFileException
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.AlphaTabEvent
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.PlayerCommand
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -30,6 +35,7 @@ class TabViewerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: TabFileRepository,
     private val library: LibraryRepository,
+    private val preferences: UserPreferencesRepository,
     @ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -47,6 +53,9 @@ class TabViewerViewModel @Inject constructor(
 
     /** Ajustes guardados que faltan por aplicar cuando AlphaTab esté listo. */
     @Volatile private var pendingRestore: PracticeSettings? = null
+
+    /** Espera a que se dejen de pulsar los botones de tamaño antes de volver a dibujar. */
+    private var zoomJob: Job? = null
 
     init {
         loadScore()
@@ -75,7 +84,9 @@ class TabViewerViewModel @Inject constructor(
             }
             val saved = rememberInLibrary(document, bytes)
             pendingRestore = saved
-            _uiState.update { it.copy(score = ScoreBytes(bytes), speed = saved?.speed ?: it.speed) }
+            // El tamaño se lee antes de crear el WebView, que lo recibe en la URL.
+            val scale = preferences.scoreScale.first()
+            _uiState.update { it.copy(score = ScoreBytes(bytes), speed = saved?.speed ?: it.speed, scoreScale = scale) }
         }
     }
 
@@ -237,6 +248,29 @@ class TabViewerViewModel @Inject constructor(
         PedalAction.PREVIOUS_PAGE -> send(PlayerCommand.ScrollPage(-1))
     }
 
+    /** Pantalla completa: solo la partitura y una barra mínima, sin cabecera ni herramientas. */
+    fun onFocusModeToggled() {
+        _uiState.update { it.copy(isFocusMode = !it.isFocusMode) }
+    }
+
+    /**
+     * Agranda (pasos positivos) o achica la partitura. El número cambia al instante, pero se
+     * vuelve a dibujar cuando se deja de pulsar, para no repetir el dibujo en cada toque.
+     */
+    fun onZoom(steps: Int) {
+        val current = _uiState.value.scoreScale
+        val next = ScoreScale.step(current, steps)
+        if (next == current) return
+        _uiState.update { it.copy(scoreScale = next) }
+        zoomJob?.cancel()
+        zoomJob = viewModelScope.launch {
+            delay(ZOOM_SETTLE_MS)
+            _uiState.update { it.copy(isRendering = true) }
+            send(PlayerCommand.SetScale(next))
+            appScope.launch { preferences.setScoreScale(next) }
+        }
+    }
+
     fun onMetronomeToggled() {
         val enabled = !_uiState.value.isMetronomeOn
         _uiState.update { it.copy(isMetronomeOn = enabled) }
@@ -266,6 +300,7 @@ class TabViewerViewModel @Inject constructor(
         const val MAX_SPEED = 1.5f
         private const val END_MARGIN_MS = 1_000L
         private const val SPEED_TRAINER_STEP = 0.05f
+        internal const val ZOOM_SETTLE_MS = 400L
         val SPEED_TRAINER_TARGETS = listOf(0.8f, 0.9f, 1f, 1.1f, 1.2f)
     }
 }

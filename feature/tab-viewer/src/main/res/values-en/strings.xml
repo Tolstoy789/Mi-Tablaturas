@@ -24,4 +24,9 @@
     <string name="tab_viewer_remove_from_library">Remove from library</string>
     <string name="tab_viewer_error_unsupported">This file is not a supported tab. Open a Guitar Pro file (.gp3, .gp4, .gp5, .gpx or .gp).</string>
     <string name="tab_viewer_error_engine">This tab could not be shown or played. The file may be damaged or use an unsupported Guitar Pro version.</string>
+    <string name="tab_viewer_focus_enter">Show the score full screen</string>
+    <string name="tab_viewer_focus_exit">Exit full screen</string>
+    <string name="tab_viewer_zoom_in">Make the score bigger</string>
+    <string name="tab_viewer_zoom_out">Make the score smaller</string>
+    <string name="tab_viewer_zoom_level">%1$d%%</string>
 </resources>

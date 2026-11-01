@@ -7,4 +7,8 @@ import kotlinx.coroutines.flow.Flow
 interface UserPreferencesRepository {
     val design: Flow<AppDesign>
     suspend fun setDesign(design: AppDesign)
+
+    /** Tamaño de la partitura en el visor; ver [com.tolstoy.mitablaturas.core.model.ScoreScale]. */
+    val scoreScale: Flow<Float>
+    suspend fun setScoreScale(scale: Float)
 }

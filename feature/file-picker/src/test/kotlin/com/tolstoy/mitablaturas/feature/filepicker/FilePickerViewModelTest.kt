@@ -44,6 +44,10 @@ class FilePickerViewModelTest {
         override suspend fun setDesign(design: AppDesign) {
             this.design.value = design
         }
+        override val scoreScale = MutableStateFlow(0.9f)
+        override suspend fun setScoreScale(scale: Float) {
+            scoreScale.value = scale
+        }
     }
 
     private class FakeLibrary(initial: List<LibraryEntry> = emptyList()) : LibraryRepository {

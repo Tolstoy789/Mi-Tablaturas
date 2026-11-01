@@ -3,6 +3,8 @@ package com.tolstoy.mitablaturas.feature.tabviewer
 import androidx.lifecycle.SavedStateHandle
 import com.tolstoy.mitablaturas.core.data.file.TabFileRepository
 import com.tolstoy.mitablaturas.core.data.library.LibraryRepository
+import com.tolstoy.mitablaturas.core.data.preferences.UserPreferencesRepository
+import com.tolstoy.mitablaturas.core.model.AppDesign
 import com.tolstoy.mitablaturas.core.designsystem.PedalAction
 import com.tolstoy.mitablaturas.core.model.LibraryEntry
 import com.tolstoy.mitablaturas.core.model.PracticeSettings
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -64,15 +67,30 @@ class TabViewerViewModelTest {
         }
     }
 
+    private class FakePreferences(scale: Float = 0.9f) : UserPreferencesRepository {
+        override val design = MutableStateFlow(AppDesign.DEFAULT)
+        override suspend fun setDesign(design: AppDesign) {
+            this.design.value = design
+        }
+        override val scoreScale = MutableStateFlow(scale)
+        override suspend fun setScoreScale(scale: Float) {
+            scoreScale.value = scale
+        }
+    }
+
     private val gp5 = TabDocument("content://1", "Blues en La.gp5", TabFormat.GUITAR_PRO_5, 3)
 
-    private fun TestScope.viewModel(repository: TabFileRepository, library: LibraryRepository = FakeLibrary()) =
-        TabViewerViewModel(
-            savedStateHandle = SavedStateHandle(mapOf(TabViewerViewModel.ARG_URI to "content://1")),
-            repository = repository,
-            library = library,
-            appScope = this,
-        )
+    private fun TestScope.viewModel(
+        repository: TabFileRepository,
+        library: LibraryRepository = FakeLibrary(),
+        preferences: UserPreferencesRepository = FakePreferences(),
+    ) = TabViewerViewModel(
+        savedStateHandle = SavedStateHandle(mapOf(TabViewerViewModel.ARG_URI to "content://1")),
+        repository = repository,
+        library = library,
+        preferences = preferences,
+        appScope = this,
+    )
 
     @Test
     fun `carga los bytes de un gp5`() = runTest(dispatcher) {
@@ -305,6 +323,62 @@ class TabViewerViewModelTest {
             ),
             vm.commands.take(4).toList(),
         )
+    }
+
+    @Test
+    fun `pantalla completa se activa y se desactiva`() = runTest(dispatcher) {
+        val vm = viewModel(FakeRepository(Result.success(gp5)))
+        advanceUntilIdle()
+        assertFalse(vm.uiState.value.isFocusMode)
+        vm.onFocusModeToggled()
+        assertTrue(vm.uiState.value.isFocusMode)
+        vm.onFocusModeToggled()
+        assertFalse(vm.uiState.value.isFocusMode)
+    }
+
+    @Test
+    fun `abre con el tamano guardado`() = runTest(dispatcher) {
+        val vm = viewModel(FakeRepository(Result.success(gp5)), preferences = FakePreferences(scale = 1.3f))
+        advanceUntilIdle()
+        assertEquals(1.3f, vm.uiState.value.scoreScale)
+    }
+
+    @Test
+    fun `varios toques de tamano se dibujan una sola vez y se guardan`() = runTest(dispatcher) {
+        val preferences = FakePreferences()
+        val vm = viewModel(FakeRepository(Result.success(gp5)), preferences = preferences)
+        advanceUntilIdle()
+        vm.onEngineEvent(AlphaTabEvent.RenderFinished)
+        assertTrue(vm.uiState.value.canZoom)
+
+        vm.onZoom(1)
+        vm.onZoom(1)
+        vm.onZoom(1)
+        // El número cambia al instante; el dibujo espera a que se deje de pulsar.
+        assertEquals(1.2f, vm.uiState.value.scoreScale)
+        assertFalse(vm.uiState.value.isRendering)
+        advanceTimeBy(TabViewerViewModel.ZOOM_SETTLE_MS + 1)
+        assertTrue(vm.uiState.value.isRendering)
+        assertFalse(vm.uiState.value.canZoom)
+        advanceUntilIdle()
+        assertEquals(1.2f, preferences.scoreScale.value)
+
+        // Tras la orden de tamaño solo queda la siguiente: no hubo un dibujo por cada toque.
+        vm.onStop()
+        assertEquals(listOf(PlayerCommand.SetScale(1.2f), PlayerCommand.Stop), vm.commands.take(2).toList())
+    }
+
+    @Test
+    fun `el tamano no pasa del maximo`() = runTest(dispatcher) {
+        val vm = viewModel(FakeRepository(Result.success(gp5)), preferences = FakePreferences(scale = 2.0f))
+        advanceUntilIdle()
+        vm.onEngineEvent(AlphaTabEvent.RenderFinished)
+        vm.onZoom(1)
+        advanceUntilIdle()
+        assertEquals(2.0f, vm.uiState.value.scoreScale)
+        assertFalse(vm.uiState.value.isRendering)
+        vm.onStop()
+        assertEquals(PlayerCommand.Stop, vm.commands.first())
     }
 
     @Test

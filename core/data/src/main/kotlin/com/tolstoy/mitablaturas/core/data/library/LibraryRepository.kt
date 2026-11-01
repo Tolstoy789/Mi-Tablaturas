@@ -23,4 +23,10 @@ interface LibraryRepository {
     suspend fun practiceSettings(uri: String): PracticeSettings?
 
     suspend fun savePracticeSettings(uri: String, settings: PracticeSettings)
+
+    /** Título y artista que trae la partitura, para mostrarlos y buscarlos en la biblioteca. */
+    suspend fun saveScoreInfo(uri: String, title: String, artist: String)
+
+    /** Página del PDF en la que se dejó (desde 0); se lee en [PracticeSettings.page]. */
+    suspend fun savePdfPage(uri: String, page: Int)
 }

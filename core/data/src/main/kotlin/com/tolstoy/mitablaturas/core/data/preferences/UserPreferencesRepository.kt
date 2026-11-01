@@ -1,6 +1,7 @@
 package com.tolstoy.mitablaturas.core.data.preferences
 
 import com.tolstoy.mitablaturas.core.model.AppDesign
+import com.tolstoy.mitablaturas.core.model.LibrarySort
 import kotlinx.coroutines.flow.Flow
 
 /** Preferencias del usuario que deben sobrevivir entre sesiones. */
@@ -15,4 +16,8 @@ interface UserPreferencesRepository {
     /** El visor muestra solo la tablatura, sin pentagrama. */
     val tabOnly: Flow<Boolean>
     suspend fun setTabOnly(enabled: Boolean)
+
+    /** Orden de la biblioteca en la pantalla de inicio. */
+    val librarySort: Flow<LibrarySort>
+    suspend fun setLibrarySort(sort: LibrarySort)
 }

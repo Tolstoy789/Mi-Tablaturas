@@ -4,11 +4,15 @@ import android.graphics.Bitmap
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tolstoy.mitablaturas.core.data.di.ApplicationScope
 import com.tolstoy.mitablaturas.core.data.file.TabFileRepository
 import com.tolstoy.mitablaturas.core.data.library.LibraryRepository
 import com.tolstoy.mitablaturas.core.model.TabFileException
 import com.tolstoy.mitablaturas.core.model.TabFormat
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +28,7 @@ class PdfViewerViewModel @Inject constructor(
     private val repository: TabFileRepository,
     private val library: LibraryRepository,
     private val opener: PdfDocumentOpener,
+    @ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
     private val uri: String = checkNotNull(savedStateHandle[ARG_URI]) { "Falta el argumento $ARG_URI" }
@@ -32,6 +37,11 @@ class PdfViewerViewModel @Inject constructor(
     val uiState: StateFlow<PdfViewerUiState> = _uiState.asStateFlow()
 
     @Volatile private var pages: PdfPages? = null
+
+    /** URI con la que el PDF está en la biblioteca (la copia local si llegó con permiso temporal). */
+    private var libraryUri: String? = null
+    private var savedPage = 0
+    private var savePageJob: Job? = null
 
     init {
         viewModelScope.launch { load() }
@@ -47,6 +57,8 @@ class PdfViewerViewModel @Inject constructor(
         val bytes = repository.readBytes(document).getOrElse { return fail(PdfViewerError.UNREADABLE) }
 
         val stored = if (document.hasLastingAccess) document else repository.importCopy(document, bytes).getOrDefault(document)
+        libraryUri = stored.uri
+        savedPage = library.practiceSettings(stored.uri)?.page ?: 0
         library.recordOpened(stored)
 
         val opened = try {
@@ -61,7 +73,32 @@ class PdfViewerViewModel @Inject constructor(
             return fail(PdfViewerError.DAMAGED)
         }
         pages = opened
-        _uiState.update { it.copy(pageSizes = opened.pageSizes, isLoading = false) }
+        // Si el archivo cambió y tiene menos páginas, se vuelve a la última.
+        val restore = savedPage.coerceIn(0, (opened.pageSizes.size - 1).coerceAtLeast(0))
+        _uiState.update {
+            it.copy(pageSizes = opened.pageSizes, isLoading = false, pageToRestore = restore.takeIf { page -> page > 0 })
+        }
+    }
+
+    /** La pantalla ya mostró [PdfViewerUiState.pageToRestore]; desde ahora se guarda la página visible. */
+    fun onPageRestored() {
+        _uiState.update { it.copy(pageToRestore = null) }
+    }
+
+    /**
+     * Página visible arriba del todo. Se guarda tras un momento sin cambios, para no escribir en
+     * cada página que pasa al desplazarse rápido. Se ignora hasta volver a la página guardada.
+     */
+    fun onPageChanged(page: Int) {
+        val state = _uiState.value
+        val target = libraryUri
+        if (target == null || state.isLoading || state.pageToRestore != null || page == savedPage) return
+        savedPage = page
+        savePageJob?.cancel()
+        savePageJob = appScope.launch {
+            delay(PAGE_SAVE_DELAY_MS)
+            library.savePdfPage(target, page)
+        }
     }
 
     private fun fail(error: PdfViewerError) {
@@ -90,5 +127,7 @@ class PdfViewerViewModel @Inject constructor(
 
         /** Suficiente para tablets en horizontal sin gastar memoria de más. */
         private const val MAX_PAGE_WIDTH_PX = 2_048
+
+        internal const val PAGE_SAVE_DELAY_MS = 500L
     }
 }

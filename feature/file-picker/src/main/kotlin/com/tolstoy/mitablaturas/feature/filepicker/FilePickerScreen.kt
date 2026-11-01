@@ -56,6 +56,9 @@ fun FilePickerRoute(
     val libraryState by viewModel.libraryState.collectAsStateWithLifecycle()
     val design by viewModel.design.collectAsStateWithLifecycle()
     var showDesignDialog by rememberSaveable { mutableStateOf(false) }
+    // El campo de búsqueda guarda su texto aquí, sin esperar al ViewModel, que filtra la lista.
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(searchQuery) { viewModel.onQueryChanged(searchQuery) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         viewModel.onDocumentPicked(uri?.toString())
     }
@@ -71,11 +74,14 @@ fun FilePickerRoute(
         onOpenFile = { launcher.launch(PICKER_MIME_TYPES) },
         onDismissError = viewModel::onErrorDismissed,
         onOpenDocument = onOpenDocument,
+        searchQuery = searchQuery,
         libraryActions = LibraryActions(
             onOpen = { entry -> onOpenDocument(entry.document) },
             onFilterSelected = viewModel::onFilterSelected,
             onFavoriteToggled = viewModel::onFavoriteToggled,
             onRemove = viewModel::onRemoveFromLibrary,
+            onQueryChanged = { searchQuery = it },
+            onSortSelected = viewModel::onSortSelected,
         ),
         onChangeDesign = { showDesignDialog = true },
         onOpenLicenses = onOpenLicenses,
@@ -98,6 +104,7 @@ fun FilePickerScreen(
     onOpenDocument: (TabDocument) -> Unit,
     modifier: Modifier = Modifier,
     libraryState: LibraryUiState = LibraryUiState(),
+    searchQuery: String = "",
     libraryActions: LibraryActions = LibraryActions(),
     onChangeDesign: () -> Unit = {},
     onOpenLicenses: () -> Unit = {},
@@ -137,7 +144,7 @@ fun FilePickerScreen(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    librarySection(libraryState, libraryActions)
+                    librarySection(libraryState, searchQuery, libraryActions)
                 }
             }
         } else {
@@ -153,7 +160,7 @@ fun FilePickerScreen(
                         result()
                     }
                 }
-                librarySection(libraryState, libraryActions, topSpacing = true)
+                librarySection(libraryState, searchQuery, libraryActions, topSpacing = true)
                 item(key = "licenses") { LicensesLink(onOpenLicenses) }
             }
         }
@@ -284,11 +291,15 @@ private fun FilePickerError.message(): String = when (this) {
     FilePickerError.Unreadable -> stringResource(R.string.file_picker_error_unreadable)
 }
 
-private fun TabFormat.shortLabel(): String = extensions.first().uppercase()
+private fun TabFormat.shortLabel(): String = when (this) {
+    TabFormat.MUSIC_XML -> "XML"
+    else -> extensions.first().uppercase()
+}
 
 @Composable
-internal fun TabFormat.label(): String = when (this) {
-    TabFormat.PDF -> stringResource(R.string.file_picker_format_pdf)
+internal fun TabFormat.label(): String = when {
+    this == TabFormat.PDF -> stringResource(R.string.file_picker_format_pdf)
+    this == TabFormat.MUSIC_XML -> stringResource(R.string.file_picker_format_musicxml)
     else -> stringResource(R.string.file_picker_format_gp)
 }
 

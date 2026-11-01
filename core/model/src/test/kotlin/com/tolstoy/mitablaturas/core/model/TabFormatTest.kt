@@ -18,6 +18,15 @@ class TabFormatTest {
     }
 
     @Test
+    fun `detecta MusicXML comprimido y sin comprimir`() {
+        assertEquals(TabFormat.MUSIC_XML, TabFormat.fromFileName("cancion.musicxml"))
+        assertEquals(TabFormat.MUSIC_XML, TabFormat.fromFileName("cancion.MXL"))
+        assertEquals(TabFormat.MUSIC_XML, TabFormat.fromFileName("cancion.xml"))
+        assertTrue(TabFormat.MUSIC_XML.isInteractive)
+        assertFalse(TabFormat.MUSIC_XML.isGuitarPro)
+    }
+
+    @Test
     fun `ignora mayusculas y usa la ultima extension`() {
         assertEquals(TabFormat.GUITAR_PRO_5, TabFormat.fromFileName("Mi.Cancion.GP5"))
         assertEquals(TabFormat.PDF, TabFormat.fromFileName("partitura.final.PDF"))
@@ -54,6 +63,37 @@ class TabFormatTest {
         assertEquals(TabFormat.GUITAR_PRO_6, TabFormat.fromHeader(header("BCFS")))
         assertEquals(TabFormat.GUITAR_PRO_7, TabFormat.fromHeader(header("PK\u0003\u0004\u0014")))
         assertEquals(TabFormat.PDF, TabFormat.fromHeader(header("%PDF-1.7")))
+    }
+
+    /** Cabecera local de un ZIP cuyo primer archivo se llama [name]. */
+    private fun zip(name: String): ByteArray {
+        val local = ByteArray(30)
+        "PK\u0003\u0004".toByteArray(Charsets.ISO_8859_1).copyInto(local)
+        local[26] = name.length.toByte()
+        return local + name.toByteArray(Charsets.ISO_8859_1) + ByteArray(8)
+    }
+
+    @Test
+    fun `distingue un MXL de un Guitar Pro 7 por el primer archivo del ZIP`() {
+        assertEquals(TabFormat.MUSIC_XML, TabFormat.fromHeader(zip("mimetype")))
+        assertEquals(TabFormat.MUSIC_XML, TabFormat.fromHeader(zip("META-INF/container.xml")))
+        assertEquals(TabFormat.GUITAR_PRO_7, TabFormat.fromHeader(zip("VERSION")))
+        assertEquals(TabFormat.GUITAR_PRO_7, TabFormat.fromHeader(zip("Content/score.gpif")))
+        // Cabecera cortada antes del nombre: un ZIP sin más datos se trata como Guitar Pro 7.
+        assertEquals(TabFormat.GUITAR_PRO_7, TabFormat.fromHeader(zip("mimetype").copyOf(20)))
+    }
+
+    @Test
+    fun `detecta MusicXML sin comprimir por su raiz`() {
+        val declaration = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
+        val doctype = "<!DOCTYPE score-partwise PUBLIC \"-//Recordare//DTD MusicXML 4.0 Partwise//EN\" " +
+            "\"http://www.musicxml.org/dtds/partwise.dtd\">\n"
+        assertEquals(TabFormat.MUSIC_XML, TabFormat.fromHeader((declaration + doctype).toByteArray()))
+        assertEquals(TabFormat.MUSIC_XML, TabFormat.fromHeader("\uFEFF<score-timewise version=\"3.1\">".toByteArray()))
+        val utf16 = byteArrayOf(0xFF.toByte(), 0xFE.toByte()) + "<score-partwise>".toByteArray(Charsets.UTF_16LE)
+        assertEquals(TabFormat.MUSIC_XML, TabFormat.fromHeader(utf16))
+        // Otro XML cualquiera no es una partitura.
+        assertNull(TabFormat.fromHeader("$declaration<svg xmlns=\"http://www.w3.org/2000/svg\">".toByteArray()))
     }
 
     @Test

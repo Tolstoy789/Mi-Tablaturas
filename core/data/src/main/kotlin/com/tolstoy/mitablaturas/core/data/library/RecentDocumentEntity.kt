@@ -21,6 +21,12 @@ data class RecentDocumentEntity(
     @ColumnInfo(name = "track_index") val trackIndex: Int = 0,
     val speed: Float = 1f,
     @ColumnInfo(name = "position_ms") val positionMs: Long = 0,
+    // Desde la versión 2 de la base de datos (ver MIGRATION_1_2): los valores por defecto deben
+    // coincidir con los de la migración.
+    @ColumnInfo(defaultValue = "''") val title: String = "",
+    @ColumnInfo(defaultValue = "''") val artist: String = "",
+    @ColumnInfo(name = "open_count", defaultValue = "1") val openCount: Int = 1,
+    @ColumnInfo(name = "pdf_page", defaultValue = "0") val pdfPage: Int = 0,
 )
 
 /** `null` si el formato guardado ya no existe en esta versión de la app. */
@@ -31,8 +37,11 @@ internal fun RecentDocumentEntity.toModel(): LibraryEntry? {
         lastOpenedAt = lastOpenedAt,
         isFavorite = isFavorite,
         practice = toPracticeSettings(),
+        title = title,
+        artist = artist,
+        openCount = openCount,
     )
 }
 
 internal fun RecentDocumentEntity.toPracticeSettings() =
-    PracticeSettings(trackIndex = trackIndex, speed = speed, positionMs = positionMs)
+    PracticeSettings(trackIndex = trackIndex, speed = speed, positionMs = positionMs, page = pdfPage)

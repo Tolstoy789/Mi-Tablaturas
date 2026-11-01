@@ -22,13 +22,14 @@ abstract class RecentDocumentDao {
     @Query(
         """
         UPDATE recent_documents
-        SET display_name = :displayName, format = :format, size_bytes = :sizeBytes, last_opened_at = :openedAt
+        SET display_name = :displayName, format = :format, size_bytes = :sizeBytes, last_opened_at = :openedAt,
+            open_count = open_count + 1
         WHERE uri = :uri
         """,
     )
     abstract suspend fun updateOpened(uri: String, displayName: String, format: String, sizeBytes: Long?, openedAt: Long)
 
-    /** Inserta la fila o, si ya existía, actualiza sus datos sin perder favorita ni ajustes. */
+    /** Inserta la fila o, si ya existía, actualiza sus datos y suma una apertura sin perder favorita ni ajustes. */
     @Transaction
     open suspend fun recordOpened(entity: RecentDocumentEntity) {
         if (insert(entity) == -1L) {
@@ -41,6 +42,12 @@ abstract class RecentDocumentDao {
 
     @Query("UPDATE recent_documents SET track_index = :trackIndex, speed = :speed, position_ms = :positionMs WHERE uri = :uri")
     abstract suspend fun updatePractice(uri: String, trackIndex: Int, speed: Float, positionMs: Long)
+
+    @Query("UPDATE recent_documents SET title = :title, artist = :artist WHERE uri = :uri")
+    abstract suspend fun updateScoreInfo(uri: String, title: String, artist: String)
+
+    @Query("UPDATE recent_documents SET pdf_page = :page WHERE uri = :uri")
+    abstract suspend fun updatePdfPage(uri: String, page: Int)
 
     @Query("DELETE FROM recent_documents WHERE uri = :uri")
     abstract suspend fun delete(uri: String)

@@ -18,7 +18,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideLibraryDatabase(@ApplicationContext context: Context): LibraryDatabase =
-        Room.databaseBuilder(context, LibraryDatabase::class.java, "library.db").build()
+        Room.databaseBuilder(context, LibraryDatabase::class.java, "library.db")
+            .addMigrations(*LibraryDatabase.MIGRATIONS)
+            .build()
 
     @Provides
     fun provideRecentDocumentDao(database: LibraryDatabase): RecentDocumentDao = database.recentDocumentDao()

@@ -50,6 +50,11 @@ class RoomLibraryRepository @Inject constructor(
     override suspend fun savePracticeSettings(uri: String, settings: PracticeSettings) =
         dao.updatePractice(uri, settings.trackIndex, settings.speed, settings.positionMs)
 
+    override suspend fun saveScoreInfo(uri: String, title: String, artist: String) =
+        dao.updateScoreInfo(uri, title.trim(), artist.trim())
+
+    override suspend fun savePdfPage(uri: String, page: Int) = dao.updatePdfPage(uri, page.coerceAtLeast(0))
+
     private fun releaseAccess(uri: String) {
         if (ImportedFiles.delete(context, uri)) return
         try {

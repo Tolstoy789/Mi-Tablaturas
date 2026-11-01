@@ -8,6 +8,8 @@ data class PdfViewerUiState(
     val pageSizes: List<PageSize> = emptyList(),
     val isLoading: Boolean = true,
     val error: PdfViewerError? = null,
+    /** Página en la que se dejó el PDF (desde 0), hasta que la pantalla vuelve a ella. */
+    val pageToRestore: Int? = null,
 ) {
     val title: String get() = fileName.substringBeforeLast('.')
 }

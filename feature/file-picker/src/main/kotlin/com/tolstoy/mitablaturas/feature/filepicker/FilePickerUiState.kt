@@ -2,6 +2,7 @@ package com.tolstoy.mitablaturas.feature.filepicker
 
 import com.tolstoy.mitablaturas.core.model.LibraryEntry
 import com.tolstoy.mitablaturas.core.model.LibraryFilter
+import com.tolstoy.mitablaturas.core.model.LibrarySort
 import com.tolstoy.mitablaturas.core.model.TabDocument
 import com.tolstoy.mitablaturas.core.model.TabFileException
 
@@ -28,11 +29,23 @@ internal fun Throwable.toFilePickerError(): FilePickerError = when (this) {
 }
 
 /**
- * @property entries entradas que cumplen [filter], de la más reciente a la más antigua.
- * @property hasEntries `true` si la biblioteca tiene alguna entrada, aunque el filtro la oculte.
+ * @property entries entradas que cumplen [filter] y la búsqueda [query], en el orden [sort].
+ * @property totalCount canciones de la biblioteca, aunque el filtro o la búsqueda las oculten.
  */
 data class LibraryUiState(
     val entries: List<LibraryEntry> = emptyList(),
     val filter: LibraryFilter = LibraryFilter.ALL,
-    val hasEntries: Boolean = false,
-)
+    val sort: LibrarySort = LibrarySort.DEFAULT,
+    val query: String = "",
+    val totalCount: Int = 0,
+) {
+    /** `true` si la biblioteca tiene alguna entrada. */
+    val hasEntries: Boolean get() = totalCount > 0
+
+    /** Buscar y ordenar aparecen con varias canciones, o si ya hay algo escrito en la búsqueda. */
+    val showTools: Boolean get() = totalCount >= TOOLS_MIN_ENTRIES || query.isNotBlank()
+
+    companion object {
+        const val TOOLS_MIN_ENTRIES = 4
+    }
+}

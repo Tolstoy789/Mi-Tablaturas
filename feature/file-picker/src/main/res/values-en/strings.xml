@@ -1,13 +1,13 @@
 <resources>
     <string name="file_picker_title">My tabs</string>
     <string name="file_picker_card_title">Open a tab</string>
-    <string name="file_picker_card_body">Guitar Pro (.gp3, .gp4, .gp5, .gpx, .gp) or PDF from your phone or the cloud.</string>
+    <string name="file_picker_card_body">Guitar Pro (.gp3, .gp4, .gp5, .gpx, .gp), MusicXML (.musicxml, .mxl) or PDF from your phone or the cloud.</string>
     <string name="file_picker_open">Open file</string>
     <string name="file_picker_view">View</string>
     <string name="file_picker_dismiss">Got it</string>
     <string name="file_picker_format_gp">Guitar Pro</string>
     <string name="file_picker_format_pdf">PDF</string>
-    <string name="file_picker_error_format">“%1$s” is not a supported tab. Choose a .gp3, .gp4, .gp5, .gpx, .gp or .pdf file.</string>
+    <string name="file_picker_error_format">“%1$s” is not a supported tab. Choose a .gp3, .gp4, .gp5, .gpx, .gp, .musicxml, .mxl or .pdf file.</string>
     <string name="file_picker_error_empty">“%1$s” is empty or damaged.</string>
     <string name="file_picker_error_too_large">“%1$s” is larger than the %2$d MB limit.</string>
     <string name="file_picker_error_unreadable">The file could not be read. Check that it still exists and try again.</string>
@@ -18,6 +18,13 @@
     <string name="library_filter_favorites">Favorites</string>
     <string name="library_empty_filter">No tabs match this filter.</string>
     <string name="library_empty_favorites">Tap ☆ on a song to keep it here.</string>
+    <string name="library_empty_search">No songs match “%1$s”.</string>
+    <string name="library_search_hint">Search by title, artist or file</string>
+    <string name="library_search_clear">Clear search</string>
+    <string name="library_sort_button">Sort: %1$s</string>
+    <string name="library_sort_recent">Recent</string>
+    <string name="library_sort_name">Name</string>
+    <string name="library_sort_most_opened">Most opened</string>
     <string name="library_favorite_add">Add to favorites</string>
     <string name="library_favorite_remove">Remove from favorites</string>
     <string name="library_more">More options</string>

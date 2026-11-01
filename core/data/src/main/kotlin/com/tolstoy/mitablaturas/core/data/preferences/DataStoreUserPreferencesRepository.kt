@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.tolstoy.mitablaturas.core.model.AppDesign
+import com.tolstoy.mitablaturas.core.model.LibrarySort
 import com.tolstoy.mitablaturas.core.model.ScoreScale
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -48,9 +49,18 @@ class DataStoreUserPreferencesRepository @Inject constructor(
         dataStore.edit { it[KEY_TAB_ONLY] = enabled }
     }
 
+    override val librarySort: Flow<LibrarySort> = preferences
+        .map { prefs -> LibrarySort.fromKey(prefs[KEY_LIBRARY_SORT]) }
+        .distinctUntilChanged()
+
+    override suspend fun setLibrarySort(sort: LibrarySort) {
+        dataStore.edit { it[KEY_LIBRARY_SORT] = sort.name }
+    }
+
     private companion object {
         val KEY_DESIGN = stringPreferencesKey("design")
         val KEY_SCORE_SCALE = floatPreferencesKey("score_scale")
         val KEY_TAB_ONLY = booleanPreferencesKey("tab_only")
+        val KEY_LIBRARY_SORT = stringPreferencesKey("library_sort")
     }
 }

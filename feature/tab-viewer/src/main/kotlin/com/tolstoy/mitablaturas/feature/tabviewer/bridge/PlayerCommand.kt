@@ -21,6 +21,8 @@ sealed interface PlayerCommand {
     data object ClearLoopRange : PlayerCommand
     /** Desplaza la partitura una pantalla hacia abajo (1) o hacia arriba (-1). */
     data class ScrollPage(val direction: Int) : PlayerCommand
+    /** Vuelve a dibujar la partitura con otro tamaño (escala de AlphaTab). */
+    data class SetScale(val scale: Float) : PlayerCommand
 
     /** Script listo para `WebView.evaluateJavascript`. Si la página aún no cargó, no hace nada. */
     fun toJavaScript(): String {
@@ -38,6 +40,7 @@ sealed interface PlayerCommand {
             MarkLoopEnd -> "markLoopEnd()"
             ClearLoopRange -> "clearLoopRange()"
             is ScrollPage -> "scrollPage(${direction.coerceIn(-1, 1)})"
+            is SetScale -> "setScale(${String.format(Locale.US, "%.2f", scale)})"
         }
         return "window.tab && window.tab.$call;"
     }

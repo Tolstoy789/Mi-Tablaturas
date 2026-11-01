@@ -39,6 +39,9 @@
     info: color("info", "#1F1A33"),
     barNumber: color("barNumber", "#5B3FD1")
   };
+  // Tamaño de la partitura (ScoreScale en core/model); después cambia con window.tab.setScale.
+  var initialScale = parseFloat(params.get("scale"));
+  if (!(initialScale >= 0.3 && initialScale <= 3)) initialScale = 0.9;
   var rootStyle = document.documentElement.style;
   rootStyle.setProperty("--sheet", theme.sheet);
   rootStyle.setProperty("--accent", theme.accent);
@@ -61,7 +64,7 @@
     },
     display: {
       layoutMode: "page",
-      scale: 0.9,
+      scale: initialScale,
       resources: {
         staffLineColor: theme.staff,
         barSeparatorColor: theme.bar,
@@ -240,7 +243,22 @@
       resetSelection();
       reportRange();
     },
-    scrollPage: scrollPage
+    scrollPage: scrollPage,
+    /**
+     * Vuelve a dibujar con otro tamaño. Kotlin muestra la rueda de carga hasta renderFinished;
+     * después AlphaTab desplaza la partitura hasta el cursor.
+     */
+    setScale: function (scale) {
+      var display = api.settings.display;
+      if (!(scale > 0) || display.scale === scale) {
+        native.onRenderFinished();
+        return;
+      }
+      display.scale = scale;
+      api.updateSettings();
+      // Sin partitura todavía, el primer dibujo ya usará el tamaño nuevo.
+      if (api.score) api.render();
+    }
   };
 
   // Pedal Bluetooth o teclado: los pasapáginas envían Av Pág / flechas, y Espacio reproduce.

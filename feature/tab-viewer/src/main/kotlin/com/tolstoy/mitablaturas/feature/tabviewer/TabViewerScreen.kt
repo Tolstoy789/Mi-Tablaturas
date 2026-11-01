@@ -1,5 +1,6 @@
 package com.tolstoy.mitablaturas.feature.tabviewer
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -65,6 +67,9 @@ fun TabViewerRoute(
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onBackgrounded() }
     KeepScreenOnEffect()
     PlaybackInterruptionsEffect(isPlaying = uiState.isPlaying, onInterrupted = viewModel::onAudioInterrupted)
+    // En pantalla completa, «atrás» vuelve al visor normal en lugar de cerrar la canción.
+    BackHandler(enabled = uiState.isFocusMode, onBack = viewModel::onFocusModeToggled)
+    if (uiState.isFocusMode) HideSystemBarsEffect()
 
     TabViewerScreen(
         uiState = uiState,
@@ -87,6 +92,8 @@ fun TabViewerRoute(
             onCountInToggled = viewModel::onCountInToggled,
             onSpeedTrainerToggled = viewModel::onSpeedTrainerToggled,
             onSpeedTrainerTargetCycled = viewModel::onSpeedTrainerTargetCycled,
+            onFocusModeToggled = viewModel::onFocusModeToggled,
+            onZoom = viewModel::onZoom,
         ),
         modifier = modifier.pedalInput(viewModel::onPedal),
     )
@@ -108,6 +115,9 @@ data class TabViewerActions(
     val onCountInToggled: () -> Unit = {},
     val onSpeedTrainerToggled: () -> Unit = {},
     val onSpeedTrainerTargetCycled: () -> Unit = {},
+    val onFocusModeToggled: () -> Unit = {},
+    /** Pasos de tamaño de la partitura: +1 agranda, -1 reduce. */
+    val onZoom: (Int) -> Unit = {},
 )
 
 /** Ancho del panel lateral con pistas y herramientas en horizontal. */
@@ -139,10 +149,22 @@ fun TabViewerScreen(
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val isLandscape = maxWidth > maxHeight
-        if (isLandscape) {
+        if (uiState.isFocusMode) {
+            // El fondo de la hoja detrás tapa las esquinas redondeadas al ocupar toda la pantalla.
+            Box(Modifier.fillMaxSize().background(LocalScoreSheetStyle.current.background)) {
+                sheet(uiState, Modifier.fillMaxSize())
+                FocusBar(
+                    uiState = uiState,
+                    actions = actions,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(12.dp),
+                )
+            }
+        } else if (isLandscape) {
             Row(Modifier.fillMaxSize()) {
                 Column(Modifier.weight(1f).fillMaxHeight()) {
-                    Header(uiState, actions.onBack)
+                    Header(uiState, actions.onBack, actions.onFocusModeToggled)
                     sheet(
                         uiState,
                         Modifier
@@ -167,7 +189,7 @@ fun TabViewerScreen(
             }
         } else {
             Column(Modifier.fillMaxSize()) {
-                Header(uiState, actions.onBack)
+                Header(uiState, actions.onBack, actions.onFocusModeToggled)
                 if (uiState.trackNames.size > 1) {
                     TrackChips(uiState.trackNames, uiState.selectedTrack, actions.onTrackSelected, vertical = false)
                 }
@@ -204,6 +226,7 @@ private fun ScoreSheet(
                     commands = commands,
                     onEvent = onEngineEvent,
                     modifier = Modifier.fillMaxSize(),
+                    initialScale = uiState.scoreScale,
                 )
             }
             when {
@@ -215,11 +238,11 @@ private fun ScoreSheet(
 }
 
 @Composable
-private fun Header(uiState: TabViewerUiState, onBack: () -> Unit) {
+private fun Header(uiState: TabViewerUiState, onBack: () -> Unit, onFocusMode: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 4.dp, end = 16.dp, top = 4.dp),
+            .padding(start = 4.dp, end = 4.dp, top = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TextButton(onClick = onBack) { Text(stringResource(R.string.tab_viewer_back)) }
@@ -244,6 +267,10 @@ private fun Header(uiState: TabViewerUiState, onBack: () -> Unit) {
                     maxLines = 1,
                 )
             }
+        }
+        val focusDescription = stringResource(R.string.tab_viewer_focus_enter)
+        IconButton(onClick = onFocusMode, modifier = Modifier.semantics { contentDescription = focusDescription }) {
+            FullscreenIcon(expand = true)
         }
     }
 }

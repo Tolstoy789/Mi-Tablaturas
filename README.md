@@ -16,6 +16,7 @@ Herramientas de práctica en el visor:
 - **Cuenta previa**, **metrónomo** y **velocidad** del 25 % al 150 % en pasos del 5 %.
 - **+5 % por vuelta:** sube la velocidad al terminar cada repetición hasta el objetivo elegido (80-120 %).
 - **Pedal Bluetooth o teclado:** Av Pág / Re Pág (o las flechas) pasan de pantalla y Espacio reproduce o pausa. En los PDF el pedal pasa de página.
+- **Pantalla completa:** el botón de esquinas junto al título deja solo la partitura, sin barras del sistema, con una barra flotante para reproducir, cambiar el tamaño (A− / A+, del 60 % al 200 %, se recuerda para la próxima vez) y salir. «Atrás» también sale.
 
 En los visores la pantalla no se apaga, y la reproducción se pausa si la app pasa a segundo plano, entra una llamada, suena otra app o se desconectan los auriculares.
 

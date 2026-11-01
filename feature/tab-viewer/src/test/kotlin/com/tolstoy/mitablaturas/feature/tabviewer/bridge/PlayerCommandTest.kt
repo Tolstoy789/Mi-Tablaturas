@@ -25,6 +25,7 @@ class PlayerCommandTest {
         try {
             Locale.setDefault(Locale.forLanguageTag("es-ES"))
             assertEquals("window.tab && window.tab.setSpeed(0.75);", PlayerCommand.SetSpeed(0.75f).toJavaScript())
+            assertEquals("window.tab && window.tab.setScale(1.10);", PlayerCommand.SetScale(1.1f).toJavaScript())
         } finally {
             Locale.setDefault(previous)
         }

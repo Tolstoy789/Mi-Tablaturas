@@ -48,6 +48,10 @@ class FilePickerViewModelTest {
         override suspend fun setScoreScale(scale: Float) {
             scoreScale.value = scale
         }
+        override val tabOnly = MutableStateFlow(false)
+        override suspend fun setTabOnly(enabled: Boolean) {
+            tabOnly.value = enabled
+        }
     }
 
     private class FakeLibrary(initial: List<LibraryEntry> = emptyList()) : LibraryRepository {

@@ -2,6 +2,7 @@ package com.tolstoy.mitablaturas.feature.tabviewer
 
 import androidx.compose.runtime.Immutable
 import com.tolstoy.mitablaturas.core.model.ScoreScale
+import com.tolstoy.mitablaturas.feature.tabviewer.bridge.ScoreSection
 
 @Immutable
 data class TabViewerUiState(
@@ -35,11 +36,26 @@ data class TabViewerUiState(
     val isFocusMode: Boolean = false,
     /** Tamaño de la partitura; ver [ScoreScale]. */
     val scoreScale: Float = ScoreScale.DEFAULT,
+    /** Solo la tablatura, sin pentagrama (preferencia general de la app). */
+    val isTabOnly: Boolean = false,
+    /** Silencio, solo y volumen de cada pista, en el orden de [trackNames]. */
+    val trackMix: List<TrackMix> = emptyList(),
+    /** Volumen del metrónomo cuando está encendido, de 0 a 1. */
+    val metronomeVolume: Float = 1f,
+    /** Semitonos que se sube (positivo) o se baja el sonido; la partitura no cambia. */
+    val transposition: Int = 0,
+    /** Secciones que marca el archivo (Intro, Estribillo…). */
+    val sections: List<ScoreSection> = emptyList(),
+    /** Tras saltar a una sección se recuerda que una pulsación larga la repite. */
+    val showSectionHint: Boolean = false,
 ) {
     val displayTitle: String get() = title.ifBlank { fileName.substringBeforeLast('.') }
 
-    /** Los botones de tamaño esperan a que termine el dibujo anterior. */
-    val canZoom: Boolean get() = score != null && error == null && !isRendering
+    /** Los botones que vuelven a dibujar (tamaño, solo tablatura) esperan a que termine el dibujo anterior. */
+    val canRedraw: Boolean get() = score != null && error == null && !isRendering
+
+    /** Los controles de sonido actúan sobre el reproductor, que debe estar listo. */
+    val canControlPlayer: Boolean get() = isPlayerReady && error == null
 
     val loopRange: LoopRangeState get() = when {
         loopStartBar > 0 && loopEndBar > 0 -> LoopRangeState.ACTIVE
@@ -47,6 +63,10 @@ data class TabViewerUiState(
         else -> LoopRangeState.NONE
     }
 }
+
+/** Mezcla de una pista: silenciada, sola (solo suenan las pistas en solo) y volumen de 0 a 1. */
+@Immutable
+data class TrackMix(val isMuted: Boolean = false, val isSolo: Boolean = false, val volume: Float = 1f)
 
 /** Pasos del bucle A-B: sin bucle, punto A marcado, o repitiendo de A a B. */
 enum class LoopRangeState { NONE, START_MARKED, ACTIVE }

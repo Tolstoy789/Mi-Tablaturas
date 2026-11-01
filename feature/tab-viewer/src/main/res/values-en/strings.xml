@@ -29,4 +29,22 @@
     <string name="tab_viewer_zoom_in">Make the score bigger</string>
     <string name="tab_viewer_zoom_out">Make the score smaller</string>
     <string name="tab_viewer_zoom_level">%1$d%%</string>
+    <string name="tab_viewer_tab_only">Show tab only</string>
+    <string name="tab_viewer_sound">Sound</string>
+    <string name="tab_viewer_sound_open">Sound: tracks, metronome and pitch</string>
+    <string name="tab_viewer_sound_hint">Mute your track to play along with the rest, or solo it to learn it.</string>
+    <string name="tab_viewer_mute">Mute</string>
+    <string name="tab_viewer_solo">Solo</string>
+    <string name="tab_viewer_track_volume">%1$s volume</string>
+    <string name="tab_viewer_metronome_volume">Metronome volume</string>
+    <string name="tab_viewer_percent">%1$d%%</string>
+    <string name="tab_viewer_transposition">Pitch</string>
+    <string name="tab_viewer_transposition_original">Original</string>
+    <string name="tab_viewer_transposition_up">Up one semitone</string>
+    <string name="tab_viewer_transposition_down">Down one semitone</string>
+    <string name="tab_viewer_transposition_hint">Only the sound changes; the tab stays the same. Useful, for example, with a guitar tuned half a step down.</string>
+    <string name="tab_viewer_sections">Sections</string>
+    <string name="tab_viewer_section_unnamed">Bar %1$d</string>
+    <string name="tab_viewer_section_loop">Loop the section</string>
+    <string name="tab_viewer_section_hint">Press and hold a section to loop it.</string>
 </resources>

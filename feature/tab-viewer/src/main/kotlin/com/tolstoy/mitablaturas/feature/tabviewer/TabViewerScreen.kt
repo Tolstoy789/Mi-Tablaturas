@@ -1,12 +1,16 @@
 package com.tolstoy.mitablaturas.feature.tabviewer
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -28,8 +33,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +58,7 @@ import com.tolstoy.mitablaturas.core.designsystem.LocalScoreSheetStyle
 import com.tolstoy.mitablaturas.core.designsystem.pedalInput
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.AlphaTabEvent
 import com.tolstoy.mitablaturas.feature.tabviewer.bridge.PlayerCommand
+import com.tolstoy.mitablaturas.feature.tabviewer.bridge.ScoreSection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlin.math.roundToInt
@@ -94,6 +103,14 @@ fun TabViewerRoute(
             onSpeedTrainerTargetCycled = viewModel::onSpeedTrainerTargetCycled,
             onFocusModeToggled = viewModel::onFocusModeToggled,
             onZoom = viewModel::onZoom,
+            onTabOnlyToggled = viewModel::onTabOnlyToggled,
+            onTrackMuteToggled = viewModel::onTrackMuteToggled,
+            onTrackSoloToggled = viewModel::onTrackSoloToggled,
+            onTrackVolumeChanged = viewModel::onTrackVolumeChanged,
+            onMetronomeVolumeChanged = viewModel::onMetronomeVolumeChanged,
+            onTranspositionChanged = viewModel::onTranspositionChanged,
+            onSectionTapped = viewModel::onSectionTapped,
+            onSectionLongPressed = viewModel::onSectionLongPressed,
         ),
         modifier = modifier.pedalInput(viewModel::onPedal),
     )
@@ -118,6 +135,15 @@ data class TabViewerActions(
     val onFocusModeToggled: () -> Unit = {},
     /** Pasos de tamaño de la partitura: +1 agranda, -1 reduce. */
     val onZoom: (Int) -> Unit = {},
+    val onTabOnlyToggled: () -> Unit = {},
+    val onTrackMuteToggled: (Int) -> Unit = {},
+    val onTrackSoloToggled: (Int) -> Unit = {},
+    val onTrackVolumeChanged: (Int, Float) -> Unit = { _, _ -> },
+    val onMetronomeVolumeChanged: (Float) -> Unit = {},
+    /** Semitonos: +1 sube, -1 baja. */
+    val onTranspositionChanged: (Int) -> Unit = {},
+    val onSectionTapped: (Int) -> Unit = {},
+    val onSectionLongPressed: (Int) -> Unit = {},
 )
 
 /** Ancho del panel lateral con pistas y herramientas en horizontal. */
@@ -147,6 +173,9 @@ fun TabViewerScreen(
         }
     }
 
+    var showSound by rememberSaveable { mutableStateOf(false) }
+    if (showSound) SoundSheet(uiState = uiState, actions = actions, onDismiss = { showSound = false })
+
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val isLandscape = maxWidth > maxHeight
         if (uiState.isFocusMode) {
@@ -164,7 +193,7 @@ fun TabViewerScreen(
         } else if (isLandscape) {
             Row(Modifier.fillMaxSize()) {
                 Column(Modifier.weight(1f).fillMaxHeight()) {
-                    Header(uiState, actions.onBack, actions.onFocusModeToggled)
+                    Header(uiState, actions, onOpenSound = { showSound = true })
                     sheet(
                         uiState,
                         Modifier
@@ -184,14 +213,20 @@ fun TabViewerScreen(
                     if (uiState.trackNames.size > 1) {
                         TrackChips(uiState.trackNames, uiState.selectedTrack, actions.onTrackSelected, vertical = true)
                     }
+                    if (uiState.sections.isNotEmpty()) {
+                        SectionChips(uiState.sections, uiState.canControlPlayer, actions, vertical = true)
+                    }
                     PracticeTools(uiState, actions, compact = true)
                 }
             }
         } else {
             Column(Modifier.fillMaxSize()) {
-                Header(uiState, actions.onBack, actions.onFocusModeToggled)
+                Header(uiState, actions, onOpenSound = { showSound = true })
                 if (uiState.trackNames.size > 1) {
                     TrackChips(uiState.trackNames, uiState.selectedTrack, actions.onTrackSelected, vertical = false)
+                }
+                if (uiState.sections.isNotEmpty()) {
+                    SectionChips(uiState.sections, uiState.canControlPlayer, actions, vertical = false)
                 }
                 sheet(
                     uiState,
@@ -227,6 +262,7 @@ private fun ScoreSheet(
                     onEvent = onEngineEvent,
                     modifier = Modifier.fillMaxSize(),
                     initialScale = uiState.scoreScale,
+                    initialTabOnly = uiState.isTabOnly,
                 )
             }
             when {
@@ -238,14 +274,14 @@ private fun ScoreSheet(
 }
 
 @Composable
-private fun Header(uiState: TabViewerUiState, onBack: () -> Unit, onFocusMode: () -> Unit) {
+private fun Header(uiState: TabViewerUiState, actions: TabViewerActions, onOpenSound: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 4.dp, end = 4.dp, top = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TextButton(onClick = onBack) { Text(stringResource(R.string.tab_viewer_back)) }
+        TextButton(onClick = actions.onBack) { Text(stringResource(R.string.tab_viewer_back)) }
         Column(Modifier.weight(1f)) {
             Text(
                 text = uiState.displayTitle,
@@ -268,8 +304,13 @@ private fun Header(uiState: TabViewerUiState, onBack: () -> Unit, onFocusMode: (
                 )
             }
         }
+        TabOnlyToggle(checked = uiState.isTabOnly, enabled = uiState.canRedraw, onToggle = actions.onTabOnlyToggled)
+        val soundDescription = stringResource(R.string.tab_viewer_sound_open)
+        IconButton(onClick = onOpenSound, modifier = Modifier.semantics { contentDescription = soundDescription }) {
+            SpeakerIcon()
+        }
         val focusDescription = stringResource(R.string.tab_viewer_focus_enter)
-        IconButton(onClick = onFocusMode, modifier = Modifier.semantics { contentDescription = focusDescription }) {
+        IconButton(onClick = actions.onFocusModeToggled, modifier = Modifier.semantics { contentDescription = focusDescription }) {
             FullscreenIcon(expand = true)
         }
     }
@@ -322,6 +363,72 @@ private fun TrackChips(names: List<String>, selected: Int, onSelected: (Int) -> 
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) { chips() }
+    }
+}
+
+/**
+ * Secciones del archivo: un toque salta a la sección y una pulsación larga la repite.
+ * En horizontal se reparten en varias filas; en vertical, una fila que se desliza.
+ */
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+@Composable
+private fun SectionChips(sections: List<ScoreSection>, enabled: Boolean, actions: TabViewerActions, vertical: Boolean) {
+    val loopLabel = stringResource(R.string.tab_viewer_section_loop)
+    val title: @Composable () -> Unit = {
+        Text(
+            text = stringResource(R.string.tab_viewer_sections),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    val chips: @Composable () -> Unit = {
+        sections.forEachIndexed { index, section ->
+            val name = section.name.ifBlank { stringResource(R.string.tab_viewer_section_unnamed, section.startBar) }
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else 0.38f),
+                modifier = Modifier
+                    .clip(MaterialTheme.shapes.small)
+                    .combinedClickable(
+                        enabled = enabled,
+                        onLongClickLabel = loopLabel,
+                        onLongClick = { actions.onSectionLongPressed(index) },
+                        onClick = { actions.onSectionTapped(index) },
+                    ),
+            ) {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .widthIn(max = 160.dp)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
+        }
+    }
+    if (vertical) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            title()
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                chips()
+            }
+        }
+    } else {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            title()
+            chips()
+        }
     }
 }
 
@@ -419,6 +526,13 @@ private fun LoopRangePill(uiState: TabViewerUiState, enabled: Boolean, onClick: 
 /** Indicaciones bajo los botones: cómo cerrar el bucle y hasta dónde sube el entrenador. */
 @Composable
 private fun PracticeHints(uiState: TabViewerUiState, onTargetCycled: () -> Unit) {
+    if (uiState.showSectionHint) {
+        Text(
+            text = stringResource(R.string.tab_viewer_section_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
     if (uiState.loopRange == LoopRangeState.START_MARKED) {
         Text(
             text = stringResource(R.string.tab_viewer_loop_hint, uiState.loopStartBar),
@@ -482,7 +596,7 @@ private val PillMinHeight = 48.dp
 
 /** Botón de acción (reproducir, detener). [description] sustituye a [label] en TalkBack si los símbolos no se leen bien. */
 @Composable
-private fun ActionPill(
+internal fun ActionPill(
     label: String,
     enabled: Boolean,
     onClick: () -> Unit,
@@ -507,7 +621,7 @@ private fun ActionPill(
 
 /** Interruptor (repetir, metrónomo): TalkBack anuncia si está activado. */
 @Composable
-private fun TogglePill(
+internal fun TogglePill(
     label: String,
     checked: Boolean,
     enabled: Boolean,

@@ -2,6 +2,7 @@ package com.tolstoy.mitablaturas.core.data.preferences
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
@@ -39,8 +40,17 @@ class DataStoreUserPreferencesRepository @Inject constructor(
         dataStore.edit { it[KEY_SCORE_SCALE] = ScoreScale.normalize(scale) }
     }
 
+    override val tabOnly: Flow<Boolean> = preferences
+        .map { prefs -> prefs[KEY_TAB_ONLY] ?: false }
+        .distinctUntilChanged()
+
+    override suspend fun setTabOnly(enabled: Boolean) {
+        dataStore.edit { it[KEY_TAB_ONLY] = enabled }
+    }
+
     private companion object {
         val KEY_DESIGN = stringPreferencesKey("design")
         val KEY_SCORE_SCALE = floatPreferencesKey("score_scale")
+        val KEY_TAB_ONLY = booleanPreferencesKey("tab_only")
     }
 }

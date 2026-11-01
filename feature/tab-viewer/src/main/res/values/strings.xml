@@ -33,4 +33,25 @@
     <string name="tab_viewer_pause_symbol" translatable="false">❚❚</string>
     <string name="tab_viewer_zoom_in_symbol" translatable="false">A+</string>
     <string name="tab_viewer_zoom_out_symbol" translatable="false">A−</string>
+    <string name="tab_viewer_tab_only">Ver solo la tablatura</string>
+    <string name="tab_viewer_tab_symbol" translatable="false">TAB</string>
+    <string name="tab_viewer_sound">Sonido</string>
+    <string name="tab_viewer_sound_open">Sonido: pistas, metrónomo y tono</string>
+    <string name="tab_viewer_sound_hint">Silencia tu pista para tocar encima del resto, o déjala sola para aprenderla.</string>
+    <string name="tab_viewer_mute">Silenciar</string>
+    <string name="tab_viewer_solo">Solo</string>
+    <string name="tab_viewer_track_volume">Volumen de %1$s</string>
+    <string name="tab_viewer_metronome_volume">Volumen del metrónomo</string>
+    <string name="tab_viewer_percent">%1$d %%</string>
+    <string name="tab_viewer_transposition">Tono</string>
+    <string name="tab_viewer_transposition_original">Original</string>
+    <string name="tab_viewer_transposition_up">Subir un semitono</string>
+    <string name="tab_viewer_transposition_down">Bajar un semitono</string>
+    <string name="tab_viewer_transposition_hint">Cambia solo el sonido: la tablatura sigue igual. Sirve, por ejemplo, para tocar con la guitarra afinada medio tono abajo.</string>
+    <string name="tab_viewer_minus_symbol" translatable="false">−</string>
+    <string name="tab_viewer_plus_symbol" translatable="false">+</string>
+    <string name="tab_viewer_sections">Secciones</string>
+    <string name="tab_viewer_section_unnamed">Compás %1$d</string>
+    <string name="tab_viewer_section_loop">Repetir la sección</string>
+    <string name="tab_viewer_section_hint">Mantén pulsada una sección para repetirla.</string>
 </resources>

@@ -58,7 +58,7 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     else -> null
 }
 
-/** Barra flotante de la pantalla completa: reproducir, tamaño de la partitura y salir. */
+/** Barra flotante de la pantalla completa: reproducir, tamaño de la partitura, solo tablatura y salir. */
 @Composable
 internal fun FocusBar(uiState: TabViewerUiState, actions: TabViewerActions, modifier: Modifier = Modifier) {
     val canPlay = uiState.isPlayerReady && uiState.error == null
@@ -81,7 +81,7 @@ internal fun FocusBar(uiState: TabViewerUiState, actions: TabViewerActions, modi
             }
             FocusBarButton(
                 description = stringResource(R.string.tab_viewer_zoom_out),
-                enabled = uiState.canZoom && uiState.scoreScale > ScoreScale.MIN,
+                enabled = uiState.canRedraw && uiState.scoreScale > ScoreScale.MIN,
                 onClick = { actions.onZoom(-1) },
             ) { SymbolLabel(stringResource(R.string.tab_viewer_zoom_out_symbol)) }
             Text(
@@ -92,9 +92,15 @@ internal fun FocusBar(uiState: TabViewerUiState, actions: TabViewerActions, modi
             )
             FocusBarButton(
                 description = stringResource(R.string.tab_viewer_zoom_in),
-                enabled = uiState.canZoom && uiState.scoreScale < ScoreScale.MAX,
+                enabled = uiState.canRedraw && uiState.scoreScale < ScoreScale.MAX,
                 onClick = { actions.onZoom(1) },
             ) { SymbolLabel(stringResource(R.string.tab_viewer_zoom_in_symbol)) }
+            TabOnlyToggle(
+                checked = uiState.isTabOnly,
+                enabled = uiState.canRedraw,
+                onToggle = actions.onTabOnlyToggled,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
             FocusBarButton(
                 description = stringResource(R.string.tab_viewer_focus_exit),
                 enabled = true,
